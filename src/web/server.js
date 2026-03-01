@@ -37,6 +37,7 @@ class WebServer {
     constructor(port = 3000) {
         this.port = port
         this.app = express()
+        this.app.set('trust proxy', 1)
         this.server = createServer(this.app)
         this.io = null
         this.updateInterval = null
@@ -454,76 +455,116 @@ class WebServer {
         })
         
         // ==================== API ДЛЯ АДМИНОВ ====================
-        this.app.get('/api/admin/admins', isAdminAPI, (req, res) => {
-            try {
-                const admins = dbManager.db.prepare(`
-                    SELECT up.user_id, up.role, up.permissions, up.granted_at, up.updated_at,
-                           u.username, u.avatar_url
-                    FROM user_permissions up
-                    LEFT JOIN users u ON u.user_id = up.user_id
-                    WHERE up.role IN ('admin', 'superadmin')
-                    ORDER BY 
-                        CASE up.role 
-                            WHEN 'superadmin' THEN 1 
-                            WHEN 'admin' THEN 2 
-                            ELSE 3 
-                        END,
-                        up.updated_at DESC
-                `).all()
-                
-                res.json({ success: true, data: admins })
-            } catch (error) {
-                console.error('❌ Ошибка при получении администраторов:', error)
-                res.status(500).json({ success: false, error: error.message })
-            }
-        })
+this.app.get('/api/admin/admins', isAdminAPI, (req, res) => {
+    try {
+        const admins = dbManager.db.prepare(`
+            SELECT up.user_id, up.role, up.permissions, up.granted_at, up.updated_at,
+                   u.username, u.avatar_url
+            FROM user_permissions up
+            LEFT JOIN users u ON u.user_id = up.user_id
+            WHERE up.role IN ('admin', 'superadmin')
+            ORDER BY 
+                CASE up.role 
+                    WHEN 'superadmin' THEN 1 
+                    WHEN 'admin' THEN 2 
+                    ELSE 3 
+                END,
+                up.updated_at DESC
+        `).all()
         
-        this.app.post('/api/admin/admins', isSuperAdmin, (req, res) => {
+        res.json({ success: true, data: admins })
+    } catch (error) {
+        console.error('❌ Ошибка при получении администраторов:', error)
+        res.status(500).json({ success: false, error: error.message })
+    }
+})
+
+// ИСПРАВЛЕННЫЙ ЭНДПОИНТ ДОБАВЛЕНИЯ АДМИНА
+this.app.post('/api/admin/admins', isSuperAdmin, async (req, res) => {
+    try {
+        const { userId, username } = req.body
+        
+        if (!userId) {
+            return res.status(400).json({ success: false, error: 'Не указан ID пользователя' })
+        }
+        
+        console.log(`👑 Добавление администратора: ${userId}`);
+        
+        // Проверяем, есть ли уже пользователь в БД
+        let user = dbManager.getUserById(userId)
+        
+        if (!user) {
+            console.log(`🔄 Пользователь не найден в БД, получаем данные из Discord...`);
+            
+            // Получаем данные из Discord
+            let discordUsername = username || 'Unknown';
+            let discordAvatar = null;
+            
             try {
-                const { userId, username } = req.body
-                
-                if (!userId) {
-                    return res.status(400).json({ success: false, error: 'Не указан ID пользователя' })
+                if (global.discordClient) {
+                    const discordUser = await global.discordClient.users.fetch(userId).catch(() => null);
+                    if (discordUser) {
+                        discordUsername = discordUser.username;
+                        discordAvatar = discordUser.displayAvatarURL({ format: 'png', size: 256 });
+                        console.log(`✅ Получены данные из Discord: ${discordUsername}`);
+                    }
                 }
-                
-                let user = dbManager.getUserById(userId)
-                
-                if (!user) {
-                    dbManager.createUser(userId, username || 'Unknown', '0000', null, null, null, null)
-                }
-                
-                const existing = dbManager.db.prepare(`
-                    SELECT role FROM user_permissions WHERE user_id = ?
-                `).get(userId)
-                
-                if (existing) {
-                    return res.status(400).json({ 
-                        success: false, 
-                        error: 'Пользователь уже является администратором' 
-                    })
-                }
-                
-                const permissions = {
-                    canViewDashboard: true,
-                    canManageUsers: true,
-                    canManageGuilds: true,
-                    canManageApplications: true,
-                    canViewLogs: true
-                }
-                
-                dbManager.db.prepare(`
-                    INSERT INTO user_permissions (user_id, role, permissions, granted_by, granted_at)
-                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-                `).run(userId, 'admin', JSON.stringify(permissions), req.user.user_id)
-                
-                this.cache.admins.data = null
-                
-                res.json({ success: true, message: 'Администратор добавлен' })
-            } catch (error) {
-                console.error('❌ Ошибка при добавлении администратора:', error)
-                res.status(500).json({ success: false, error: error.message })
+            } catch (discordError) {
+                console.error('❌ Ошибка получения данных из Discord:', discordError.message);
             }
-        })
+            
+            // Создаем пользователя с правильным именем
+            dbManager.createUser(
+                userId, 
+                discordUsername, 
+                '0000', 
+                discordAvatar,
+                null, null, null, null
+            );
+            
+            console.log(`✅ Пользователь создан с именем: ${discordUsername}`);
+        } else {
+            console.log(`✅ Пользователь уже существует: ${user.username}`);
+        }
+        
+        // Проверяем, не админ ли уже
+        const existing = dbManager.db.prepare(`
+            SELECT role FROM user_permissions WHERE user_id = ?
+        `).get(userId)
+        
+        if (existing) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Пользователь уже является администратором' 
+            })
+        }
+        
+        // Стандартные права
+        const permissions = {
+            canViewDashboard: true,
+            canManageUsers: true,
+            canManageGuilds: true,
+            canManageApplications: true,
+            canViewLogs: true
+        }
+        
+        // Добавляем права
+        dbManager.db.prepare(`
+            INSERT INTO user_permissions (user_id, role, permissions, granted_by, granted_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        `).run(userId, 'admin', JSON.stringify(permissions), req.user.user_id)
+        
+        // Очищаем кэш
+        this.cache.admins.data = null
+        
+        console.log(`✅ Администратор ${userId} успешно добавлен`);
+        res.json({ success: true, message: 'Администратор добавлен' })
+        
+    } catch (error) {
+        console.error('❌ Ошибка при добавлении администратора:', error)
+        res.status(500).json({ success: false, error: error.message })
+    }
+})
         
         this.app.delete('/api/admin/admins', isSuperAdmin, (req, res) => {
             try {
