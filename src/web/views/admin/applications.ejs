@@ -1,0 +1,2476 @@
+<% 
+title = 'Заявки в семью';
+%>
+
+<%- include('../layouts/main') %>
+
+<!-- Подключаем Socket.IO -->
+<script src="/socket.io/socket.io.js"></script>
+
+<style>
+    /* ===== ОСНОВНЫЕ ПЕРЕМЕННЫЕ ===== */
+    :root {
+        --bg-primary: #0A0A0A;
+        --bg-secondary: #111111;
+        --bg-card: rgba(26, 26, 26, 0.6);
+        --bg-card-hover: rgba(34, 34, 34, 0.8);
+        --border-color: rgba(255, 255, 255, 0.05);
+        --border-color-hover: rgba(139, 92, 246, 0.2);
+        --text-primary: #FFFFFF;
+        --text-secondary: rgba(255, 255, 255, 0.7);
+        --text-muted: rgba(255, 255, 255, 0.4);
+        --accent-blue: #3B82F6;
+        --accent-green: #10B981;
+        --accent-yellow: #F59E0B;
+        --accent-red: #EF4444;
+        --accent-purple: #8B5CF6;
+        --accent-voice: #EC4899;
+        --accent-orange: #F97316;
+        --accent-archive: #6B7280;
+        --gradient-blue: linear-gradient(135deg, #3B82F6, #8B5CF6);
+        --gradient-green: linear-gradient(135deg, #10B981, #3B82F6);
+        --gradient-yellow: linear-gradient(135deg, #F59E0B, #EC4899);
+        --gradient-red: linear-gradient(135deg, #EF4444, #EC4899);
+        --gradient-orange: linear-gradient(135deg, #F97316, #EC4899);
+        --gradient-purple: linear-gradient(135deg, #8B5CF6, #EC4899);
+        --gradient-archive: linear-gradient(135deg, #6B7280, #4B5563);
+        --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        --shadow-lg: 0 15px 40px rgba(0, 0, 0, 0.5);
+        --glass-bg: rgba(20, 20, 30, 0.4);
+        --glass-border: 1px solid rgba(255, 255, 255, 0.03);
+        --glass-border-hover: 1px solid rgba(139, 92, 246, 0.2);
+        --glass-blur: blur(15px);
+        --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+
+    /* ===== АНИМИРОВАННЫЙ ФОН ===== */
+    .background-animation {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 0;
+        overflow: hidden;
+        pointer-events: none;
+    }
+
+    .gradient-sphere-1 {
+        position: absolute;
+        width: 80vmax;
+        height: 80vmax;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, 
+            rgba(59, 130, 246, 0.2) 0%, 
+            rgba(139, 92, 246, 0.15) 40%, 
+            rgba(236, 72, 153, 0.1) 70%, 
+            transparent 100%);
+        top: -20%;
+        right: -10%;
+        animation: floatSlow 30s ease-in-out infinite;
+        filter: blur(60px);
+    }
+
+    .gradient-sphere-2 {
+        position: absolute;
+        width: 70vmax;
+        height: 70vmax;
+        border-radius: 50%;
+        background: radial-gradient(circle at 70% 70%, 
+            rgba(236, 72, 153, 0.2) 0%, 
+            rgba(139, 92, 246, 0.15) 40%, 
+            rgba(59, 130, 246, 0.1) 70%, 
+            transparent 100%);
+        bottom: -20%;
+        left: -10%;
+        animation: floatMedium 25s ease-in-out infinite reverse;
+        filter: blur(60px);
+    }
+
+    .gradient-sphere-3 {
+        position: absolute;
+        width: 60vmax;
+        height: 60vmax;
+        border-radius: 50%;
+        background: radial-gradient(circle, 
+            rgba(59, 130, 246, 0.15) 0%, 
+            rgba(139, 92, 246, 0.1) 30%, 
+            rgba(236, 72, 153, 0.05) 60%, 
+            transparent 100%);
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        animation: pulse 15s ease-in-out infinite;
+        filter: blur(70px);
+    }
+
+    @keyframes floatSlow {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        33% { transform: translate(3%, -3%) scale(1.1); }
+        66% { transform: translate(-2%, 2%) scale(0.95); }
+    }
+
+    @keyframes floatMedium {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        25% { transform: translate(4%, -4%) scale(1.15); }
+        50% { transform: translate(-3%, 3%) scale(0.9); }
+        75% { transform: translate(2%, -2%) scale(1.05); }
+    }
+
+    @keyframes pulse {
+        0%, 100% { 
+            opacity: 0.3;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        50% { 
+            opacity: 0.6;
+            transform: translate(-50%, -50%) scale(1.3);
+        }
+    }
+
+    /* Декоративные звездочки */
+    .decorative-star {
+        position: fixed;
+        color: rgba(255, 255, 255, 0.15);
+        font-size: 2rem;
+        pointer-events: none;
+        animation: floatStar 10s linear infinite;
+        z-index: 0;
+    }
+
+    @keyframes floatStar {
+        from { transform: rotate(0deg) translateY(0); }
+        to { transform: rotate(360deg) translateY(-20px); }
+    }
+
+    /* ===== ОСНОВНОЙ КОНТЕЙНЕР ===== */
+    .applications-content {
+        width: 100%;
+        max-width: 1600px;
+        margin: 2rem auto 0;
+        padding: 100px 0 2rem;
+        animation: fadeIn 0.6s ease-out;
+        position: relative;
+        z-index: 1;
+    }
+
+    @keyframes fadeIn {
+        from { 
+            opacity: 0; 
+            transform: translateY(20px); 
+        }
+        to { 
+            opacity: 1; 
+            transform: translateY(0); 
+        }
+    }
+
+    /* ===== ВЕРХНЯЯ ПАНЕЛЬ ===== */
+    .top-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+        padding: 1rem 1.5rem;
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+        border-radius: 24px;
+        box-shadow: var(--shadow);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .top-bar::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(245, 158, 11, 0.1) 0%, transparent 70%);
+        animation: rotate 30s linear infinite;
+        pointer-events: none;
+    }
+
+    .top-bar::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, var(--accent-yellow), var(--accent-purple), transparent);
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .title-section {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .title-section i {
+        font-size: 1.6rem;
+        color: var(--accent-yellow);
+        filter: drop-shadow(0 0 20px rgba(245, 158, 11, 0.5));
+        animation: floatIcon 3s ease-in-out infinite;
+    }
+
+    @keyframes floatIcon {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        50% { transform: translateY(-5px) rotate(5deg); }
+    }
+
+    .title-section h1 {
+        font-size: 1.6rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #fff, var(--accent-yellow), var(--accent-purple));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        margin: 0;
+        letter-spacing: -0.5px;
+    }
+
+    .refresh-button {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.6rem 1.2rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: var(--glass-border);
+        border-radius: 40px;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        backdrop-filter: var(--glass-blur);
+        font-size: 0.9rem;
+    }
+
+    .refresh-button:hover {
+        background: rgba(59, 130, 246, 0.1);
+        border-color: var(--accent-blue);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .refresh-button i {
+        transition: transform 0.5s ease;
+    }
+
+    .refresh-button:hover i {
+        transform: rotate(180deg);
+    }
+
+    .embed-button {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.6rem 1.2rem;
+        background: rgba(139, 92, 246, 0.15);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: 40px;
+        color: var(--accent-purple);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        backdrop-filter: var(--glass-blur);
+        margin-left: 1rem;
+        font-size: 0.9rem;
+    }
+
+    .embed-button:hover {
+        background: rgba(139, 92, 246, 0.25);
+        border-color: var(--accent-purple);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
+    }
+
+    .action-buttons-group {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .total-stats {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .total-stat-item {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.4rem 1.2rem;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 40px;
+        border: var(--glass-border);
+        backdrop-filter: var(--glass-blur);
+    }
+
+    .total-stat-icon.total {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        background: rgba(139, 92, 246, 0.15);
+        color: var(--accent-purple);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+    }
+
+    .total-stat-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .total-stat-label {
+        color: var(--text-secondary);
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .total-stat-number {
+        font-size: 1.2rem;
+        font-weight: 800;
+        line-height: 1;
+        background: linear-gradient(135deg, #fff, #e0e0e0);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        letter-spacing: -1px;
+    }
+
+    .filters-section {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+
+    .filter-button {
+        padding: 0.5rem 1.2rem;
+        border-radius: 40px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: var(--glass-border);
+        background: rgba(20, 20, 30, 0.2);
+        backdrop-filter: var(--glass-blur);
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .filter-button:hover {
+        background: rgba(59, 130, 246, 0.25);
+        border-color: var(--accent-blue);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .filter-button.active {
+        background: var(--gradient-blue);
+        color: white;
+        border-color: transparent;
+        box-shadow: 0 10px 25px rgba(139, 92, 246, 0.4);
+    }
+
+    .filter-button .count {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 0.15rem 0.5rem;
+        border-radius: 30px;
+        font-size: 0.7rem;
+        margin-left: 0.2rem;
+    }
+
+    .applications-table-container {
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+        border-radius: 24px;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+        margin-bottom: 2rem;
+    }
+
+    .applications-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+    }
+
+    .applications-table th {
+        text-align: left;
+        padding: 0.8rem 1rem;
+        background: rgba(0, 0, 0, 0.3);
+        color: var(--text-secondary);
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .applications-table td {
+        padding: 0.8rem 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        color: var(--text-primary);
+        vertical-align: middle;
+    }
+
+    .applications-table tbody tr:hover {
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .table-user {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+
+    .table-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        border: 2px solid var(--accent-yellow);
+        object-fit: cover;
+    }
+
+    .table-username {
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 0.85rem;
+    }
+
+    .table-discord {
+        font-size: 0.7rem;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .table-discord i {
+        color: var(--accent-blue);
+        font-size: 0.6rem;
+    }
+
+    .table-user-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+    }
+
+    .table-user-id {
+        font-size: 0.6rem;
+        color: var(--text-muted);
+        font-family: monospace;
+    }
+
+    .table-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.25rem 0.8rem;
+        border-radius: 40px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        backdrop-filter: var(--glass-blur);
+        white-space: nowrap;
+    }
+
+    .table-status.pending {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--accent-yellow);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .table-status.accepted {
+        background: rgba(16, 185, 129, 0.15);
+        color: var(--accent-green);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .table-status.interview {
+        background: rgba(139, 92, 246, 0.15);
+        color: var(--accent-purple);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+    }
+
+    .table-status.rejected {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--accent-red);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .table-details {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+    }
+
+    .table-detail-item {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: var(--text-secondary);
+        font-size: 0.75rem;
+    }
+
+    .table-detail-item i {
+        color: var(--accent-yellow);
+        font-size: 0.7rem;
+        width: 14px;
+    }
+
+    .table-detail-item span {
+        color: var(--text-primary);
+        font-weight: 500;
+        font-size: 0.75rem;
+    }
+
+    .table-text {
+        max-width: 150px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--text-secondary);
+        font-size: 0.75rem;
+    }
+
+    .table-date {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: var(--text-secondary);
+        font-size: 0.7rem;
+    }
+
+    .table-date i {
+        color: var(--accent-yellow);
+        font-size: 0.7rem;
+    }
+
+    .table-admin {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.7rem;
+        color: var(--text-secondary);
+        margin-top: 0.2rem;
+    }
+
+    .table-admin i {
+        color: var(--accent-purple);
+        font-size: 0.7rem;
+    }
+
+    .table-admin .admin-name {
+        color: var(--accent-purple);
+        font-weight: 500;
+        max-width: 80px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .table-reason {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.7rem;
+        color: var(--accent-red);
+        margin-top: 0.2rem;
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .table-actions {
+        display: flex;
+        gap: 0.2rem;
+        flex-wrap: wrap;
+    }
+
+    .table-action-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+        backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+    }
+
+    .table-action-btn:hover {
+        transform: translateY(-2px);
+    }
+
+    .table-action-btn.view {
+        color: var(--accent-blue);
+    }
+
+    .table-action-btn.view:hover {
+        background: rgba(59, 130, 246, 0.2);
+        color: white;
+        border-color: var(--accent-blue);
+    }
+
+    .table-action-btn.accept {
+        color: var(--accent-green);
+    }
+
+    .table-action-btn.accept:hover {
+        background: rgba(16, 185, 129, 0.2);
+        color: white;
+        border-color: var(--accent-green);
+    }
+
+    .table-action-btn.interview {
+        color: var(--accent-purple);
+    }
+
+    .table-action-btn.interview:hover {
+        background: rgba(139, 92, 246, 0.2);
+        color: white;
+        border-color: var(--accent-purple);
+    }
+
+    .table-action-btn.reject {
+        color: var(--accent-red);
+    }
+
+    .table-action-btn.reject:hover {
+        background: rgba(239, 68, 68, 0.2);
+        color: white;
+        border-color: var(--accent-red);
+    }
+
+    .table-action-btn.archive {
+        color: var(--accent-archive);
+    }
+
+    .table-action-btn.archive:hover {
+        background: rgba(107, 114, 128, 0.2);
+        color: white;
+        border-color: var(--accent-archive);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: var(--glass-blur);
+        border-radius: 24px;
+        border: 1px dashed rgba(255, 255, 255, 0.1);
+    }
+
+    .empty-icon {
+        font-size: 4rem;
+        color: var(--text-muted);
+        margin-bottom: 1rem;
+        animation: floatIcon 4s ease-in-out infinite;
+    }
+
+    .empty-title {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-text {
+        color: var(--text-secondary);
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .loading-skeleton {
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    /* ===== МОДАЛЬНЫЕ ОКНА ===== */
+    .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: var(--glass-blur);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.4s ease;
+    }
+
+    .modal.show {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .modal-content {
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+        border-radius: 30px;
+        padding: 2rem;
+        max-width: 500px;
+        width: 90%;
+        max-height: 85vh;
+        overflow-y: auto;
+        position: relative;
+        transform: translateY(-30px) scale(0.95);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .modal.show .modal-content {
+        transform: translateY(0) scale(1);
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: var(--glass-border);
+    }
+
+    .modal-header h3 {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .modal-close {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: var(--glass-border);
+        background: rgba(255, 255, 255, 0.02);
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-close:hover {
+        background: rgba(239, 68, 68, 0.15);
+        color: #EF4444;
+        transform: rotate(90deg);
+    }
+
+    .modal-input, .modal-textarea, .modal-select {
+        width: 100%;
+        padding: 0.8rem 1.2rem;
+        background: rgba(0, 0, 0, 0.3);
+        backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+        border-radius: 40px;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        margin-bottom: 1rem;
+        appearance: none;
+        cursor: pointer;
+    }
+
+    .modal-select {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 1.2rem center;
+        background-size: 14px;
+    }
+
+    .modal-textarea {
+        border-radius: 24px;
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .modal-input:focus, .modal-textarea:focus, .modal-select:focus {
+        outline: none;
+        border-color: var(--accent-purple);
+        box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15);
+    }
+
+    .modal-footer {
+        display: flex;
+        gap: 0.8rem;
+        justify-content: flex-end;
+        margin-top: 1.5rem;
+    }
+
+    .modal-button {
+        padding: 0.7rem 1.5rem;
+        border-radius: 40px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+        backdrop-filter: var(--glass-blur);
+    }
+
+    .modal-button.cancel {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-secondary);
+        border: var(--glass-border);
+    }
+
+    .modal-button.accept {
+        background: var(--gradient-green);
+        color: white;
+        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+    }
+
+    .modal-button.reject {
+        background: var(--gradient-red);
+        color: white;
+        box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+    }
+
+    .modal-button.archive-send {
+        background: var(--gradient-archive);
+        color: white;
+        box-shadow: 0 8px 20px rgba(107, 114, 128, 0.3);
+    }
+
+    .modal-button.embed-send {
+        background: var(--gradient-purple);
+        color: white;
+        box-shadow: 0 8px 20px rgba(139, 92, 246, 0.3);
+    }
+
+    .modal-profile {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        background: rgba(0, 0, 0, 0.2);
+        backdrop-filter: var(--glass-blur);
+        border-radius: 24px;
+    }
+
+    .modal-avatar {
+        width: 70px;
+        height: 70px;
+        border-radius: 20px;
+        border: 3px solid var(--accent-yellow);
+        object-fit: cover;
+    }
+
+    .modal-username {
+        font-size: 1.3rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        margin-bottom: 0.3rem;
+    }
+
+    .modal-discord {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .modal-discord i {
+        color: var(--accent-blue);
+        font-size: 1rem;
+    }
+
+    .modal-user-id {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        font-family: monospace;
+        margin-top: 0.3rem;
+        padding: 0.15rem 0.6rem;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 30px;
+        display: inline-block;
+    }
+
+    .modal-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.8rem;
+        margin-bottom: 1rem;
+    }
+
+    .modal-field {
+        background: rgba(0, 0, 0, 0.2);
+        backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+        border-radius: 16px;
+        padding: 0.8rem;
+    }
+
+    .modal-field.full-width {
+        grid-column: span 2;
+    }
+
+    .modal-field-label {
+        color: var(--text-muted);
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.3rem;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .modal-field-label i {
+        color: var(--accent-yellow);
+        font-size: 0.7rem;
+    }
+
+    .modal-field-value {
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        font-weight: 600;
+        line-height: 1.4;
+        word-wrap: break-word;
+    }
+
+    .modal-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.3rem 1rem;
+        border-radius: 40px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        backdrop-filter: var(--glass-blur);
+    }
+
+    .modal-status.pending {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--accent-yellow);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .modal-status.accepted {
+        background: rgba(16, 185, 129, 0.15);
+        color: var(--accent-green);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .modal-status.interview {
+        background: rgba(139, 92, 246, 0.15);
+        color: var(--accent-purple);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+    }
+
+    .modal-status.rejected {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--accent-red);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .notification {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: var(--glass-blur);
+        border-left: 4px solid var(--accent-green);
+        border-radius: 20px;
+        padding: 0.8rem 1.5rem;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        box-shadow: var(--shadow-lg);
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        z-index: 9999;
+        animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .notification i {
+        color: var(--accent-green);
+        font-size: 1.1rem;
+    }
+
+    .notification.error {
+        border-left-color: var(--accent-red);
+        border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .notification.error i {
+        color: var(--accent-red);
+    }
+
+    .notification.warning {
+        border-left-color: var(--accent-yellow);
+        border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    .notification.warning i {
+        color: var(--accent-yellow);
+    }
+
+    @keyframes slideUp {
+        from {
+            transform: translateY(30px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideDown {
+        from {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateY(30px);
+            opacity: 0;
+        }
+    }
+
+    @media (max-width: 1400px) {
+        .applications-table {
+            font-size: 0.8rem;
+        }
+        
+        .table-detail-item {
+            font-size: 0.7rem;
+        }
+    }
+
+    @media (max-width: 1024px) {
+        .applications-table-container {
+            overflow-x: auto;
+        }
+        
+        .applications-table {
+            min-width: 1000px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .applications-content {
+            padding: 80px 1rem 1rem;
+        }
+
+        .top-bar {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .action-buttons-group {
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .embed-button, .refresh-button {
+            width: 100%;
+            justify-content: center;
+            margin-left: 0;
+        }
+
+        .total-stats {
+            width: 100%;
+        }
+
+        .total-stat-item {
+            flex: 1;
+        }
+
+        .filters-section {
+            flex-wrap: wrap;
+        }
+
+        .filter-button {
+            flex: 1;
+            justify-content: center;
+            padding: 0.5rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        .modal-profile {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .modal-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .modal-field.full-width {
+            grid-column: span 1;
+        }
+
+        .modal-content {
+            padding: 1.5rem;
+        }
+    }
+</style>
+
+<!-- Анимированный фон -->
+<div class="background-animation">
+    <div class="gradient-sphere-1"></div>
+    <div class="gradient-sphere-2"></div>
+    <div class="gradient-sphere-3"></div>
+</div>
+
+<!-- Декоративные звездочки -->
+<div class="decorative-star" style="top: 10%; left: 5%;">✦</div>
+<div class="decorative-star" style="bottom: 15%; right: 8%;">✧</div>
+<div class="decorative-star" style="top: 20%; right: 15%;">✦</div>
+<div class="decorative-star" style="bottom: 25%; left: 12%;">✧</div>
+
+<!-- Эффект параллакса для фона -->
+<script>
+(function() {
+    document.addEventListener('mousemove', (e) => {
+        const spheres = document.querySelectorAll('.gradient-sphere-1, .gradient-sphere-2, .gradient-sphere-3');
+        const mouseX = e.clientX / window.innerWidth;
+        const mouseY = e.clientY / window.innerHeight;
+
+        spheres.forEach((sphere, index) => {
+            const speed = 15 + (index * 5);
+            const x = (mouseX - 0.5) * speed;
+            const y = (mouseY - 0.5) * speed;
+            sphere.style.transform = `translate(${x}px, ${y}px)`;
+        });
+    });
+})();
+</script>
+
+<!-- Основной контент -->
+<div class="applications-content">
+    <!-- Верхняя панель -->
+    <div class="top-bar">
+        <div class="title-section">
+            <i class="fas fa-file-signature"></i>
+            <h1>Заявки в семью</h1>
+        </div>
+        
+        <div class="action-buttons-group">
+            <button class="embed-button" onclick="showEmbedModal()" id="embedBtn">
+                <i class="fab fa-discord"></i>
+                <span>Embed</span>
+            </button>
+            
+            <div class="total-stats">
+                <button class="refresh-button" onclick="loadApplications(true)" id="refreshBtn">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>Обновить</span>
+                </button>
+                <div class="total-stat-item">
+                    <div class="total-stat-icon total">
+                        <i class="fas fa-list"></i>
+                    </div>
+                    <div class="total-stat-info">
+                        <span class="total-stat-label">Всего</span>
+                        <span class="total-stat-number" id="totalCount">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Фильтры -->
+    <div class="filters-section">
+        <button class="filter-button active" onclick="filterApplications('pending')" id="filterPending">
+            <i class="fas fa-clock"></i>
+            Ожидают
+            <span class="count" id="pendingCountFilter">0</span>
+        </button>
+        <button class="filter-button" onclick="filterApplications('accepted')" id="filterAccepted">
+            <i class="fas fa-check-circle"></i>
+            Принятые
+            <span class="count" id="acceptedCountFilter">0</span>
+        </button>
+        <button class="filter-button" onclick="filterApplications('interview')" id="filterInterview">
+            <i class="fas fa-phone-alt"></i>
+            Обзвон
+            <span class="count" id="interviewCountFilter">0</span>
+        </button>
+        <button class="filter-button" onclick="filterApplications('rejected')" id="filterRejected">
+            <i class="fas fa-times-circle"></i>
+            Отклоненные
+            <span class="count" id="rejectedCountFilter">0</span>
+        </button>
+        <button class="filter-button" onclick="filterApplications('all')" id="filterAll">
+            <i class="fas fa-list-ul"></i>
+            Все
+            <span class="count" id="allCountFilter">0</span>
+        </button>
+    </div>
+
+    <!-- Контейнер для таблицы -->
+    <div id="applicationsTableContainer">
+        <!-- Таблица будет загружаться сюда -->
+    </div>
+</div>
+
+<!-- Модальное окно просмотра заявки -->
+<div class="modal" id="viewModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>
+                <i class="fas fa-file-alt"></i>
+                Детали заявки
+            </h3>
+            <button class="modal-close" onclick="hideViewModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="viewModalBody">
+            <!-- Контент будет загружаться динамически -->
+        </div>
+        <div class="modal-footer" id="viewModalFooter">
+            <!-- Кнопки будут добавляться динамически -->
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для принятия заявки -->
+<div class="modal" id="acceptModal">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+            <h3>
+                <i class="fas fa-check-circle" style="color: #10B981;"></i>
+                Принять заявку
+            </h3>
+            <button class="modal-close" onclick="hideAcceptModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p>Принять заявку от <strong id="acceptUserName"></strong></p>
+            
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <div class="form-label" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem; color: var(--text-secondary); font-size: 0.85rem;">
+                    <i class="fas fa-tag" style="color: var(--accent-green);"></i>
+                    <span>Nick *</span>
+                </div>
+                <input type="text" class="modal-input" id="acceptNick" placeholder="Например: Skillet Kingsize" required>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <div class="form-label" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem; color: var(--text-secondary); font-size: 0.85rem;">
+                    <i class="fas fa-hashtag" style="color: var(--accent-purple);"></i>
+                    <span>Static *</span>
+                </div>
+                <input type="text" class="modal-input" id="acceptStatic" placeholder="Например: 3811" required>
+            </div>
+            
+            <div style="background: rgba(16, 185, 129, 0.1); border-radius: 12px; padding: 0.8rem; border-left: 3px solid var(--accent-green);">
+                <p style="color: var(--text-secondary); margin: 0; font-size: 0.85rem;">
+                    <i class="fas fa-info-circle" style="color: var(--accent-green); margin-right: 0.5rem;"></i>
+                    Ник: <strong id="previewNick">Ник | Статик</strong>
+                </p>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-button cancel" onclick="hideAcceptModal()">Отмена</button>
+            <button class="modal-button accept" onclick="confirmAccept()" id="acceptConfirmBtn">Принять</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для отклонения заявки -->
+<div class="modal" id="rejectModal">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+            <h3>
+                <i class="fas fa-times-circle" style="color: #EF4444;"></i>
+                Отклонить
+            </h3>
+            <button class="modal-close" onclick="hideRejectModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p>Отклонить заявку от <strong id="rejectUserName"></strong></p>
+            
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <div class="form-label" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem; color: var(--text-secondary); font-size: 0.85rem;">
+                    <i class="fas fa-pen" style="color: var(--accent-red);"></i>
+                    <span>Причина</span>
+                </div>
+                <textarea class="modal-textarea" id="rejectReason" placeholder="Укажите причину..." required></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-button cancel" onclick="hideRejectModal()">Отмена</button>
+            <button class="modal-button reject" onclick="confirmReject()">Отклонить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для архивации заявки -->
+<div class="modal" id="archiveModal">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3>
+                <i class="fas fa-archive" style="color: #6B7280;"></i>
+                В архив
+            </h3>
+            <button class="modal-close" onclick="hideArchiveModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p>Отправить в архив заявку от <strong id="archiveUserName"></strong>?</p>
+            
+            <div style="background: rgba(107, 114, 128, 0.1); border-radius: 12px; padding: 0.8rem; border-left: 3px solid var(--accent-archive);">
+                <p style="color: var(--text-secondary); margin: 0; font-size: 0.85rem;">
+                    <i class="fas fa-info-circle" style="color: var(--accent-archive); margin-right: 0.5rem;"></i>
+                    Статус: <span id="archiveCurrentStatus"></span>
+                </p>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-button cancel" onclick="hideArchiveModal()">Отмена</button>
+            <button class="modal-button archive-send" onclick="confirmArchive()">В архив</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для удаления заявки -->
+<div class="modal" id="deleteModal">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3>
+                <i class="fas fa-trash-alt" style="color: #EF4444;"></i>
+                Удалить
+            </h3>
+            <button class="modal-close" onclick="hideDeleteModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p>Удалить заявку от <strong id="deleteUserName"></strong>?</p>
+            <p style="font-size: 0.8rem; color: var(--accent-red);">
+                <i class="fas fa-exclamation-triangle"></i>
+                Действие необратимо
+            </p>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-button cancel" onclick="hideDeleteModal()">Отмена</button>
+            <button class="modal-button delete" onclick="confirmDelete()">Удалить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для Embed сообщения -->
+<div class="modal" id="embedModal">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3>
+                <i class="fab fa-discord" style="color: #8B5CF6;"></i>
+                Форма для заявок
+            </h3>
+            <button class="modal-close" onclick="hideEmbedModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p>ID канала для отправки формы:</p>
+            
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <input type="text" class="modal-input" id="channelId" placeholder="123456789012345678" required>
+            </div>
+            
+            <div style="background: rgba(139, 92, 246, 0.1); border-radius: 12px; padding: 0.8rem;">
+                <p style="color: var(--text-secondary); margin: 0; font-size: 0.8rem;">
+                    <i class="fas fa-info-circle" style="color: var(--accent-purple);"></i>
+                    Отправить заготовленное сообщение
+                </p>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-button cancel" onclick="hideEmbedModal()">Отмена</button>
+            <button class="modal-button embed-send" onclick="prepareEmbedSend()">Отправить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно подтверждения отправки Embed -->
+<div class="modal" id="embedConfirmModal">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3>
+                <i class="fas fa-question-circle" style="color: #F59E0B;"></i>
+                Подтверждение
+            </h3>
+            <button class="modal-close" onclick="hideEmbedConfirmModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p>Отправить Embed в канал:</p>
+            <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 0.6rem; margin: 0.5rem 0; text-align: center;">
+                <code style="color: var(--accent-purple); font-size: 1rem;" id="confirmChannelId"></code>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-button cancel" onclick="hideEmbedConfirmModal()">Нет</button>
+            <button class="modal-button embed-send" onclick="sendEmbed()">Да</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    'use strict';
+    
+    const MEMBER_ROLE_ID = '<%= env.MEMBER_ROLE_ID || "1476744899335557171" %>';
+    
+    let currentFilter = 'pending';
+    let applications = [];
+    let adminsMap = {};
+    let currentAcceptId = null;
+    let currentAcceptName = '';
+    let currentRejectId = null;
+    let currentRejectName = '';
+    let currentDeleteId = null;
+    let currentDeleteName = '';
+    let currentArchiveId = null;
+    let currentArchiveName = '';
+    let currentArchiveStatus = '';
+    let currentChannelId = '';
+
+    // ===== WEBSOCKET =====
+    const socket = io();
+    
+    socket.on('connect', () => {
+        console.log('🔌 WebSocket подключен');
+        socket.emit('subscribe_applications');
+    });
+    
+    socket.on('new_application', (data) => {
+        console.log('📬 Новая заявка:', data);
+        loadApplications();
+        showNotification(`📬 Новая заявка от ${data.username}`, 'success');
+    });
+    
+    socket.on('application_updated', () => {
+        loadApplications();
+    });
+    
+    socket.on('application_deleted', () => {
+        loadApplications();
+    });
+
+    // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
+    function formatDate(dateString) {
+        if (!dateString) return 'Неизвестно';
+        const date = new Date(dateString);
+        return date.toLocaleString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type === 'error' ? 'error' : type === 'warning' ? 'warning' : ''}`;
+        notification.innerHTML = `
+            <i class="fas fa-${type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'check-circle'}"></i>
+            <span>${message}</span>
+        `;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.animation = 'slideDown 0.3s ease-in forwards';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function truncateText(text, maxLength) {
+        if (!text) return '';
+        if (text.length <= maxLength) return escapeHtml(text);
+        return escapeHtml(text.substring(0, maxLength)) + '...';
+    }
+
+    function showLoading() {
+        const container = document.getElementById('applicationsTableContainer');
+        container.innerHTML = `
+            <div class="applications-table-container">
+                <table class="applications-table">
+                    <thead>
+                        <tr>
+                            <th>Пользователь</th>
+                            <th>Статус</th>
+                            <th>Имя / Ник</th>
+                            <th>Время / Сервера</th>
+                            <th>Опыт / Откаты</th>
+                            <th>Дата</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${Array(5).fill(0).map(() => `
+                            <tr class="loading-skeleton">
+                                <td><div style="height: 18px; width: 120px; background: rgba(255,255,255,0.05); border-radius: 4px;"></div></td>
+                                <td><div style="height: 18px; width: 70px; background: rgba(255,255,255,0.05); border-radius: 4px;"></div></td>
+                                <td><div style="height: 18px; width: 100px; background: rgba(255,255,255,0.05); border-radius: 4px;"></div></td>
+                                <td><div style="height: 18px; width: 120px; background: rgba(255,255,255,0.05); border-radius: 4px;"></div></td>
+                                <td><div style="height: 18px; width: 120px; background: rgba(255,255,255,0.05); border-radius: 4px;"></div></td>
+                                <td><div style="height: 18px; width: 80px; background: rgba(255,255,255,0.05); border-radius: 4px;"></div></td>
+                                <td><div style="height: 18px; width: 100px; background: rgba(255,255,255,0.05); border-radius: 4px;"></div></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    // Обновление предпросмотра ника
+    function updateNickPreview() {
+        const nick = document.getElementById('acceptNick').value.trim();
+        const staticVal = document.getElementById('acceptStatic').value.trim();
+        const preview = document.getElementById('previewNick');
+        
+        if (nick && staticVal) {
+            preview.textContent = `${nick} | ${staticVal}`;
+            preview.style.color = 'var(--accent-green)';
+        } else if (nick) {
+            preview.textContent = `${nick} | Статик`;
+            preview.style.color = 'var(--text-secondary)';
+        } else if (staticVal) {
+            preview.textContent = `Ник | ${staticVal}`;
+            preview.style.color = 'var(--text-secondary)';
+        } else {
+            preview.textContent = 'Ник | Статик';
+            preview.style.color = 'var(--text-secondary)';
+        }
+    }
+
+    // ===== МОДАЛЬНЫЕ ОКНА =====
+    window.showViewModal = function(application) {
+        const modalBody = document.getElementById('viewModalBody');
+        const modalFooter = document.getElementById('viewModalFooter');
+        
+        const statusClass = application.status === 'pending' ? 'pending' :
+                          application.status === 'accepted' ? 'accepted' :
+                          application.status === 'interview' ? 'interview' : 'rejected';
+        
+        const statusIcon = application.status === 'pending' ? '⏳' :
+                          application.status === 'accepted' ? '✅' :
+                          application.status === 'interview' ? '📞' : '❌';
+        
+        const statusText = application.status === 'pending' ? 'Ожидает' :
+                          application.status === 'accepted' ? 'Принят' :
+                          application.status === 'interview' ? 'На обзвон' : 'Отклонен';
+        
+        const adminName = application.reviewed_by ? (adminsMap[application.reviewed_by] || 'Админ') : null;
+        
+        let actionText = 'Обработал';
+        
+        if (application.reviewed_by && application.reviewed_at) {
+            if (application.status === 'accepted') {
+                actionText = 'Принял';
+            } else if (application.status === 'rejected') {
+                actionText = 'Отклонил';
+            } else if (application.status === 'interview') {
+                actionText = 'Назначил обзвон';
+            }
+        }
+        
+        modalBody.innerHTML = `
+            <div class="modal-profile">
+                <img src="${application.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png'}" 
+                     alt="" class="modal-avatar"
+                     onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+                <div class="modal-user-info">
+                    <div class="modal-username">${escapeHtml(application.username)}</div>
+                    <div class="modal-discord">
+                        <i class="fab fa-discord"></i>
+                        ${escapeHtml(application.discord_name)}
+                    </div>
+                    <div class="modal-user-id">ID: ${application.user_id}</div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                <span class="modal-status ${statusClass}">
+                    ${statusIcon} ${statusText}
+                </span>
+                <span style="color: var(--text-muted); font-size: 0.8rem;">
+                    #${application.id}
+                </span>
+            </div>
+            
+            ${application.reviewed_by ? `
+                <div style="margin-bottom: 0.8rem; padding: 0.5rem 0.8rem; background: rgba(139, 92, 246, 0.1); border-radius: 12px; border-left: 3px solid var(--accent-purple);">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted); font-size: 0.75rem;">
+                        <i class="fas fa-user-shield" style="color: var(--accent-purple);"></i>
+                        <span>${actionText}: <strong style="color: var(--accent-purple);">${escapeHtml(adminName)}</strong></span>
+                        <span>•</span>
+                        <span><i class="fas fa-clock"></i> ${formatDate(application.reviewed_at)}</span>
+                    </div>
+                </div>
+            ` : ''}
+            
+            ${application.reject_reason ? `
+                <div style="margin-bottom: 0.8rem; padding: 0.5rem 0.8rem; background: rgba(239, 68, 68, 0.1); border-radius: 12px; border-left: 3px solid var(--accent-red);">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--accent-red); font-size: 0.75rem;">
+                        <i class="fas fa-pen"></i>
+                        <span><strong>Причина:</strong> ${escapeHtml(application.reject_reason)}</span>
+                    </div>
+                </div>
+            ` : ''}
+            
+            <div class="modal-grid">
+                <div class="modal-field">
+                    <div class="modal-field-label">
+                        <i class="fas fa-user"></i>
+                        Полное имя
+                    </div>
+                    <div class="modal-field-value">${escapeHtml(application.full_name ? application.full_name.split(',')[0] : '')}</div>
+                </div>
+                
+                <div class="modal-field">
+                    <div class="modal-field-label">
+                        <i class="fas fa-clock"></i>
+                        Время игры
+                    </div>
+                    <div class="modal-field-value">${escapeHtml(application.play_time_info || '')}</div>
+                </div>
+            </div>
+            
+            <div class="modal-field full-width" style="margin-bottom: 0.8rem;">
+                <div class="modal-field-label">
+                    <i class="fas fa-server"></i>
+                    Серверы
+                </div>
+                <div class="modal-field-value" style="max-height: 100px; overflow-y: auto; padding: 0.4rem; background: rgba(0,0,0,0.2); border-radius: 12px; font-size: 0.8rem;">
+                    ${escapeHtml(application.servers_history || '')}
+                </div>
+            </div>
+            
+            <div class="modal-field full-width" style="margin-bottom: 0.8rem;">
+                <div class="modal-field-label">
+                    <i class="fas fa-gamepad"></i>
+                    Опыт
+                </div>
+                <div class="modal-field-value" style="max-height: 100px; overflow-y: auto; padding: 0.4rem; background: rgba(0,0,0,0.2); border-radius: 12px; font-size: 0.8rem;">
+                    ${escapeHtml(application.mp_experience || '')}
+                </div>
+            </div>
+            
+            <div class="modal-field full-width">
+                <div class="modal-field-label">
+                    <i class="fas fa-link"></i>
+                    Откаты
+                </div>
+                <div class="modal-field-value" style="max-height: 100px; overflow-y: auto; padding: 0.4rem; background: rgba(0,0,0,0.2); border-radius: 12px; font-size: 0.8rem;">
+                    ${escapeHtml(application.gung_links || '')}
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; color: var(--text-muted); font-size: 0.75rem; margin-top: 0.5rem;">
+                <i class="fas fa-calendar-alt" style="margin-right: 0.3rem;"></i>
+                ${formatDate(application.created_at)}
+            </div>
+        `;
+        
+        let footerButtons = '<button class="modal-button cancel" onclick="hideViewModal()">Закрыть</button>';
+        
+        if (application.status === 'pending') {
+            footerButtons = `
+                <button class="modal-button archive-send" onclick="showArchiveModal(${application.id}, '${escapeHtml(application.username)}', '${application.status}')">
+                    <i class="fas fa-archive"></i> В архив
+                </button>
+                <button class="modal-button cancel" onclick="hideViewModal()">Закрыть</button>
+            `;
+        }
+        
+        modalFooter.innerHTML = footerButtons;
+        
+        document.getElementById('viewModal').classList.add('show');
+    };
+
+    window.hideViewModal = function() {
+        document.getElementById('viewModal').classList.remove('show');
+    };
+
+    window.showAcceptModal = function(id, username) {
+        currentAcceptId = id;
+        currentAcceptName = username;
+        document.getElementById('acceptUserName').textContent = username;
+        document.getElementById('acceptNick').value = '';
+        document.getElementById('acceptStatic').value = '';
+        
+        document.getElementById('acceptNick').addEventListener('input', updateNickPreview);
+        document.getElementById('acceptStatic').addEventListener('input', updateNickPreview);
+        
+        updateNickPreview();
+        document.getElementById('acceptModal').classList.add('show');
+    };
+
+    window.hideAcceptModal = function() {
+        document.getElementById('acceptModal').classList.remove('show');
+        
+        document.getElementById('acceptNick').removeEventListener('input', updateNickPreview);
+        document.getElementById('acceptStatic').removeEventListener('input', updateNickPreview);
+        
+        currentAcceptId = null;
+        currentAcceptName = '';
+    };
+
+    window.confirmAccept = async function() {
+        if (!currentAcceptId) return;
+        
+        const acceptBtn = document.getElementById('acceptConfirmBtn');
+        const originalText = acceptBtn.innerHTML;
+        acceptBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        acceptBtn.disabled = true;
+        
+        const nick = document.getElementById('acceptNick').value.trim();
+        const staticVal = document.getElementById('acceptStatic').value.trim();
+        
+        if (!nick) {
+            showNotification('Введите Nick', 'error');
+            acceptBtn.innerHTML = originalText;
+            acceptBtn.disabled = false;
+            return;
+        }
+        
+        if (!staticVal) {
+            showNotification('Введите Static', 'error');
+            acceptBtn.innerHTML = originalText;
+            acceptBtn.disabled = false;
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/admin/applications/${currentAcceptId}/accept`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    nick: nick,
+                    static: staticVal
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                if (data.warning) {
+                    showNotification(`⚠️ ${data.warning}`, 'warning');
+                } else {
+                    showNotification(`✅ Заявка принята`);
+                }
+                hideAcceptModal();
+                hideViewModal();
+                await loadApplications();
+            } else {
+                showNotification(data.error || 'Ошибка', 'error');
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            showNotification('Ошибка', 'error');
+        } finally {
+            acceptBtn.innerHTML = originalText;
+            acceptBtn.disabled = false;
+        }
+    };
+
+    window.showRejectModal = function(id, username) {
+        currentRejectId = id;
+        currentRejectName = username;
+        document.getElementById('rejectUserName').textContent = username;
+        document.getElementById('rejectReason').value = '';
+        document.getElementById('rejectModal').classList.add('show');
+    };
+
+    window.hideRejectModal = function() {
+        document.getElementById('rejectModal').classList.remove('show');
+        currentRejectId = null;
+        currentRejectName = '';
+    };
+
+    window.confirmReject = async function() {
+        if (!currentRejectId) return;
+        
+        const reason = document.getElementById('rejectReason').value.trim();
+        
+        if (!reason) {
+            showNotification('Укажите причину', 'error');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/admin/applications/${currentRejectId}/status`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    status: 'rejected',
+                    reason: reason
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification(`❌ Заявка отклонена`);
+                hideRejectModal();
+                hideViewModal();
+                await loadApplications();
+            } else {
+                showNotification(data.error || 'Ошибка', 'error');
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            showNotification('Ошибка', 'error');
+        }
+    };
+
+    window.showArchiveModal = function(id, username, status) {
+        currentArchiveId = id;
+        currentArchiveName = username;
+        currentArchiveStatus = status;
+        
+        document.getElementById('archiveUserName').textContent = username;
+        
+        const statusSpan = document.getElementById('archiveCurrentStatus');
+        if (statusSpan) {
+            if (status === 'accepted') {
+                statusSpan.innerHTML = '<span style="color: #10B981;">✅ Принят</span>';
+            } else if (status === 'rejected') {
+                statusSpan.innerHTML = '<span style="color: #EF4444;">❌ Отклонен</span>';
+            } else if (status === 'interview') {
+                statusSpan.innerHTML = '<span style="color: #8B5CF6;">📞 Обзвон</span>';
+            } else {
+                statusSpan.innerHTML = '<span style="color: #F59E0B;">⏳ Ожидает</span>';
+            }
+        }
+        
+        document.getElementById('archiveModal').classList.add('show');
+    };
+
+    window.hideArchiveModal = function() {
+        document.getElementById('archiveModal').classList.remove('show');
+        currentArchiveId = null;
+        currentArchiveName = '';
+        currentArchiveStatus = '';
+    };
+
+    window.confirmArchive = async function() {
+        if (!currentArchiveId) return;
+
+        try {
+            const response = await fetch(`/api/admin/applications/${currentArchiveId}/archive`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    status: currentArchiveStatus
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification(`📦 Заявка в архиве`);
+                hideArchiveModal();
+                hideViewModal();
+                await loadApplications();
+            } else {
+                showNotification(data.error || 'Ошибка', 'error');
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            showNotification('Ошибка', 'error');
+        }
+    };
+
+    window.showDeleteModal = function(id, username) {
+        currentDeleteId = id;
+        currentDeleteName = username;
+        document.getElementById('deleteUserName').textContent = username;
+        document.getElementById('deleteModal').classList.add('show');
+    };
+
+    window.hideDeleteModal = function() {
+        document.getElementById('deleteModal').classList.remove('show');
+        currentDeleteId = null;
+        currentDeleteName = '';
+    };
+
+    window.confirmDelete = async function() {
+        if (!currentDeleteId) return;
+
+        try {
+            const response = await fetch(`/api/admin/applications/${currentDeleteId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification(`🗑️ Заявка удалена`);
+                hideDeleteModal();
+                hideViewModal();
+                await loadApplications();
+            } else {
+                showNotification(data.error || 'Ошибка', 'error');
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            showNotification('Ошибка', 'error');
+        }
+    };
+
+    // ===== ФУНКЦИИ ДЛЯ EMBED =====
+    window.showEmbedModal = function() {
+        document.getElementById('embedModal').classList.add('show');
+        document.getElementById('channelId').value = '';
+    };
+
+    window.hideEmbedModal = function() {
+        document.getElementById('embedModal').classList.remove('show');
+        document.getElementById('channelId').value = '';
+    };
+
+    window.hideEmbedConfirmModal = function() {
+        document.getElementById('embedConfirmModal').classList.remove('show');
+        currentChannelId = '';
+    };
+
+    window.prepareEmbedSend = function() {
+        const channelId = document.getElementById('channelId').value.trim();
+        
+        if (!channelId) {
+            showNotification('Введите ID канала', 'error');
+            return;
+        }
+        
+        if (!/^\d+$/.test(channelId)) {
+            showNotification('ID должен содержать только цифры', 'error');
+            return;
+        }
+        
+        currentChannelId = channelId;
+        document.getElementById('confirmChannelId').textContent = channelId;
+        hideEmbedModal();
+        document.getElementById('embedConfirmModal').classList.add('show');
+    };
+
+    window.sendEmbed = async function() {
+        if (!currentChannelId) return;
+        
+        try {
+            const response = await fetch('/api/discord/send-embed', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    channelId: currentChannelId
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification('✅ Embed отправлен');
+                hideEmbedConfirmModal();
+            } else {
+                showNotification(data.error || 'Ошибка', 'error');
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            showNotification('Ошибка', 'error');
+        }
+    };
+
+    // ===== ФИЛЬТРАЦИЯ =====
+    window.filterApplications = function(filter) {
+        currentFilter = filter;
+        
+        document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
+        const filterBtn = document.getElementById(`filter${filter.charAt(0).toUpperCase() + filter.slice(1)}`);
+        if (filterBtn) filterBtn.classList.add('active');
+        
+        renderApplications();
+    };
+
+    // ===== ИЗМЕНЕНИЕ СТАТУСА =====
+    window.changeStatus = async function(id, newStatus) {
+        try {
+            if (newStatus === 'accepted') {
+                const application = applications.find(app => app.id === id);
+                if (application) {
+                    showAcceptModal(id, application.username);
+                }
+                return;
+            }
+
+            if (newStatus === 'rejected') {
+                const application = applications.find(app => app.id === id);
+                if (application) {
+                    showRejectModal(id, application.username);
+                }
+                return;
+            }
+
+            if (newStatus === 'interview') {
+                const application = applications.find(app => app.id === id);
+                if (!application) {
+                    showNotification('Заявка не найдена', 'error');
+                    return;
+                }
+
+                if (!confirm(`Отправить приглашение ${application.username}?`)) {
+                    return;
+                }
+
+                showNotification('Отправка...', 'success');
+                
+                const response = await fetch(`/api/admin/applications/${id}/send-interview`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showNotification('✅ Приглашение отправлено');
+                    
+                    const statusResponse = await fetch(`/api/admin/applications/${id}/status`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ status: newStatus })
+                    });
+                    
+                    const statusData = await statusResponse.json();
+                    
+                    if (statusData.success) {
+                        await loadApplications();
+                    }
+                } else {
+                    showNotification(data.error || 'Ошибка', 'error');
+                }
+                return;
+            }
+
+            const response = await fetch(`/api/admin/applications/${id}/status`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ status: newStatus })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification(`Статус изменен`);
+                await loadApplications();
+            } else {
+                showNotification(data.error || 'Ошибка', 'error');
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            showNotification('Ошибка', 'error');
+        }
+    };
+
+    // ===== ЗАГРУЗКА АДМИНИСТРАТОРОВ =====
+    async function loadAdmins() {
+        try {
+            const response = await fetch('/api/admin/admins');
+            const data = await response.json();
+            
+            if (data.success) {
+                adminsMap = {};
+                data.data.forEach(admin => {
+                    adminsMap[admin.user_id] = admin.username;
+                });
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки админов:', error);
+        }
+    }
+
+    // ===== ЗАГРУЗКА ЗАЯВОК =====
+    window.loadApplications = async function(force = false) {
+        const refreshBtn = document.getElementById('refreshBtn');
+        if (refreshBtn) {
+            refreshBtn.classList.add('loading');
+            const icon = refreshBtn.querySelector('i');
+            if (icon) icon.classList.add('fa-spin');
+        }
+        
+        showLoading();
+        
+        try {
+            const [appsResponse, adminsResponse] = await Promise.all([
+                fetch('/api/admin/applications'),
+                fetch('/api/admin/admins').catch(() => ({ success: false }))
+            ]);
+            
+            const appsData = await appsResponse.json();
+            
+            if (appsData.success) {
+                applications = appsData.data;
+                
+                if (adminsResponse.success) {
+                    const adminsData = await adminsResponse.json();
+                    adminsMap = {};
+                    adminsData.data.forEach(admin => {
+                        adminsMap[admin.user_id] = admin.username;
+                    });
+                }
+                
+                updateStats();
+                renderApplications();
+            } else {
+                throw new Error(appsData.error || 'Ошибка загрузки');
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки:', error);
+            showNotification('Ошибка загрузки', 'error');
+            
+            const container = document.getElementById('applicationsTableContainer');
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-exclamation-triangle" style="color: #EF4444;"></i>
+                    </div>
+                    <h3 class="empty-title">Ошибка</h3>
+                    <p class="empty-text">Не удалось загрузить заявки</p>
+                    <button onclick="loadApplications(true)" class="filter-button" style="margin-top: 1rem;">
+                        <i class="fas fa-sync-alt"></i> Повторить
+                    </button>
+                </div>
+            `;
+        } finally {
+            if (refreshBtn) {
+                refreshBtn.classList.remove('loading');
+                const icon = refreshBtn.querySelector('i');
+                if (icon) icon.classList.remove('fa-spin');
+            }
+        }
+    };
+
+    // ===== ОБНОВЛЕНИЕ СТАТИСТИКИ =====
+    function updateStats() {
+        const stats = {
+            total: applications.length,
+            pending: applications.filter(app => app.status === 'pending').length,
+            accepted: applications.filter(app => app.status === 'accepted').length,
+            interview: applications.filter(app => app.status === 'interview').length,
+            rejected: applications.filter(app => app.status === 'rejected').length
+        };
+
+        document.getElementById('totalCount').textContent = stats.total;
+        document.getElementById('pendingCountFilter').textContent = stats.pending;
+        document.getElementById('acceptedCountFilter').textContent = stats.accepted;
+        document.getElementById('interviewCountFilter').textContent = stats.interview;
+        document.getElementById('rejectedCountFilter').textContent = stats.rejected;
+        document.getElementById('allCountFilter').textContent = stats.total;
+    }
+
+    // ===== ОТОБРАЖЕНИЕ ЗАЯВОК =====
+    function renderApplications() {
+        const container = document.getElementById('applicationsTableContainer');
+        
+        let filteredApps = applications;
+        if (currentFilter !== 'all') {
+            filteredApps = applications.filter(app => app.status === currentFilter);
+        }
+        
+        filteredApps.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        
+        if (filteredApps.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-inbox"></i>
+                    </div>
+                    <h3 class="empty-title">Нет заявок</h3>
+                    <p class="empty-text">${getEmptyStateText()}</p>
+                    ${currentFilter !== 'pending' ? `
+                        <button onclick="filterApplications('pending')" class="filter-button">
+                            <i class="fas fa-clock"></i> Ожидающие
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+            return;
+        }
+        
+        let tableHtml = `
+            <div class="applications-table-container">
+                <table class="applications-table">
+                    <thead>
+                        <tr>
+                            <th>Пользователь</th>
+                            <th>Статус</th>
+                            <th>Имя / Ник</th>
+                            <th>Время / Сервера</th>
+                            <th>Опыт / Откаты</th>
+                            <th>Дата</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        filteredApps.forEach(app => {
+            const statusClass = app.status === 'pending' ? 'pending' :
+                              app.status === 'accepted' ? 'accepted' :
+                              app.status === 'interview' ? 'interview' : 'rejected';
+            
+            const statusIcon = app.status === 'pending' ? '⏳' :
+                              app.status === 'accepted' ? '✅' :
+                              app.status === 'interview' ? '📞' : '❌';
+            
+            const statusText = app.status === 'pending' ? 'Ожидает' :
+                              app.status === 'accepted' ? 'Принят' :
+                              app.status === 'interview' ? 'Обзвон' : 'Отклонен';
+            
+            const adminName = app.reviewed_by ? (adminsMap[app.reviewed_by] || 'Админ') : null;
+            
+            const appJson = JSON.stringify(app).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            
+            tableHtml += `
+                <tr>
+                    <td>
+                        <div class="table-user">
+                            <img src="${app.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png'}" 
+                                 alt="" class="table-avatar"
+                                 onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+                            <div class="table-user-info">
+                                <span class="table-username">${escapeHtml(app.username)}</span>
+                                <span class="table-discord">
+                                    <i class="fab fa-discord"></i>
+                                    ${escapeHtml(app.discord_name)}
+                                </span>
+                                <span class="table-user-id">${app.user_id}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="table-status ${statusClass}">
+                            ${statusIcon} ${statusText}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="table-details">
+                            <div class="table-detail-item">
+                                <i class="fas fa-user"></i>
+                                <span>${escapeHtml(app.full_name ? app.full_name.split(',')[0] : '')}</span>
+                            </div>
+                            <div class="table-detail-item">
+                                <i class="fas fa-tag"></i>
+                                <span>${escapeHtml(app.full_name ? app.full_name.split(',')[2] || '' : '')}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="table-details">
+                            <div class="table-detail-item">
+                                <i class="fas fa-clock"></i>
+                                <span>${escapeHtml(app.play_time_info || '')}</span>
+                            </div>
+                            <div class="table-detail-item">
+                                <i class="fas fa-server"></i>
+                                <span>${truncateText(app.servers_history || '', 15)}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="table-details">
+                            <div class="table-detail-item">
+                                <i class="fas fa-gamepad"></i>
+                                <span>${truncateText(app.mp_experience || '', 15)}</span>
+                            </div>
+                            <div class="table-detail-item">
+                                <i class="fas fa-link"></i>
+                                <span>${truncateText(app.gung_links || '', 15)}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="table-date">
+                            <i class="fas fa-calendar-alt"></i>
+                            ${formatDate(app.created_at)}
+                        </div>
+                        ${app.reviewed_by ? `
+                            <div class="table-admin">
+                                <i class="fas fa-user-shield"></i>
+                                <span class="admin-name">${escapeHtml(adminName)}</span>
+                            </div>
+                        ` : ''}
+                        ${app.reject_reason ? `
+                            <div class="table-reason" title="${escapeHtml(app.reject_reason)}">
+                                <i class="fas fa-pen"></i>
+                                <span>${truncateText(app.reject_reason, 10)}</span>
+                            </div>
+                        ` : ''}
+                    </td>
+                    <td>
+                        <div class="table-actions">
+                            <button class="table-action-btn view" onclick='showViewModal(${appJson})' title="Просмотр">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            
+                            ${app.status === 'pending' ? `
+                                <button class="table-action-btn interview" onclick="changeStatus(${app.id}, 'interview')" title="Обзвон">
+                                    <i class="fas fa-phone-alt"></i>
+                                </button>
+                                <button class="table-action-btn accept" onclick="changeStatus(${app.id}, 'accepted')" title="Принять">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="table-action-btn reject" onclick="showRejectModal(${app.id}, '${escapeHtml(app.username)}')" title="Отклонить">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            ` : ''}
+                            
+                            ${app.status === 'interview' ? `
+                                <button class="table-action-btn accept" onclick="changeStatus(${app.id}, 'accepted')" title="Принять">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="table-action-btn reject" onclick="showRejectModal(${app.id}, '${escapeHtml(app.username)}')" title="Отклонить">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            ` : ''}
+                            
+                            <button class="table-action-btn archive" onclick="showArchiveModal(${app.id}, '${escapeHtml(app.username)}', '${app.status}')" title="В архив">
+                                <i class="fas fa-archive"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        tableHtml += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        container.innerHTML = tableHtml;
+    }
+
+    function getEmptyStateText() {
+        switch(currentFilter) {
+            case 'pending': return 'Нет ожидающих заявок';
+            case 'accepted': return 'Нет принятых заявок';
+            case 'interview': return 'Нет заявок на обзвоне';
+            case 'rejected': return 'Нет отклоненных заявок';
+            default: return 'Пока нет ни одной заявки';
+        }
+    }
+
+    // ===== ИНИЦИАЛИЗАЦИЯ =====
+    document.addEventListener('DOMContentLoaded', () => {
+        loadApplications();
+        loadAdmins();
+        document.getElementById('filterPending').classList.add('active');
+    });
+
+    // Закрытие модальных окон по клику вне их
+    document.addEventListener('click', (event) => {
+        const modals = ['viewModal', 'acceptModal', 'rejectModal', 'deleteModal', 'archiveModal', 'embedModal', 'embedConfirmModal'];
+        modals.forEach(modalId => {
+            const modal = document.getElementById(modalId);
+            if (event.target === modal) {
+                if (modalId === 'viewModal') hideViewModal();
+                if (modalId === 'acceptModal') hideAcceptModal();
+                if (modalId === 'rejectModal') hideRejectModal();
+                if (modalId === 'deleteModal') hideDeleteModal();
+                if (modalId === 'archiveModal') hideArchiveModal();
+                if (modalId === 'embedModal') hideEmbedModal();
+                if (modalId === 'embedConfirmModal') hideEmbedConfirmModal();
+            }
+        });
+    });
+
+    // Закрытие по Escape
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            hideViewModal();
+            hideAcceptModal();
+            hideRejectModal();
+            hideDeleteModal();
+            hideArchiveModal();
+            hideEmbedModal();
+            hideEmbedConfirmModal();
+        }
+    });
+
+})();
+</script>

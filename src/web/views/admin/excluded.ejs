@@ -1,0 +1,1978 @@
+<% 
+title = 'Исключенные и отклоненные';
+%>
+
+<%- include('../layouts/main') %>
+
+<!-- Подключаем Socket.IO -->
+<script src="/socket.io/socket.io.js"></script>
+
+<style>
+    /* ===== ОСНОВНЫЕ ПЕРЕМЕННЫЕ ===== */
+    :root {
+        --bg-primary: #0A0A0A;
+        --bg-secondary: #111111;
+        --bg-card: rgba(26, 26, 26, 0.6);
+        --bg-card-hover: rgba(34, 34, 34, 0.8);
+        --border-color: rgba(255, 255, 255, 0.05);
+        --border-color-hover: rgba(239, 68, 68, 0.3);
+        --text-primary: #FFFFFF;
+        --text-secondary: rgba(255, 255, 255, 0.7);
+        --text-muted: rgba(255, 255, 255, 0.4);
+        --accent-blue: #3B82F6;
+        --accent-green: #10B981;
+        --accent-yellow: #F59E0B;
+        --accent-red: #EF4444;
+        --accent-purple: #8B5CF6;
+        --accent-orange: #F97316;
+        --gradient-blue: linear-gradient(135deg, #3B82F6, #8B5CF6);
+        --gradient-green: linear-gradient(135deg, #10B981, #3B82F6);
+        --gradient-yellow: linear-gradient(135deg, #F59E0B, #EC4899);
+        --gradient-red: linear-gradient(135deg, #EF4444, #EC4899);
+        --gradient-orange: linear-gradient(135deg, #F97316, #EC4899);
+        --gradient-purple: linear-gradient(135deg, #8B5CF6, #EC4899);
+        --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        --shadow-lg: 0 15px 40px rgba(0, 0, 0, 0.5);
+        --glass-bg: rgba(20, 20, 30, 0.4);
+        --glass-border: 1px solid rgba(255, 255, 255, 0.03);
+        --glass-border-hover: 1px solid rgba(239, 68, 68, 0.2);
+        --glass-blur: blur(15px);
+        --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+
+    /* ===== АНИМИРОВАННЫЙ ФОН ===== */
+    .background-animation {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 0;
+        overflow: hidden;
+        pointer-events: none;
+    }
+
+    .gradient-sphere-1 {
+        position: absolute;
+        width: 80vmax;
+        height: 80vmax;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, 
+            rgba(239, 68, 68, 0.15) 0%, 
+            rgba(245, 158, 11, 0.1) 40%, 
+            rgba(236, 72, 153, 0.05) 70%, 
+            transparent 100%);
+        top: -20%;
+        right: -10%;
+        animation: floatSlow 30s ease-in-out infinite;
+        filter: blur(60px);
+    }
+
+    .gradient-sphere-2 {
+        position: absolute;
+        width: 70vmax;
+        height: 70vmax;
+        border-radius: 50%;
+        background: radial-gradient(circle at 70% 70%, 
+            rgba(245, 158, 11, 0.15) 0%, 
+            rgba(239, 68, 68, 0.1) 40%, 
+            rgba(236, 72, 153, 0.05) 70%, 
+            transparent 100%);
+        bottom: -20%;
+        left: -10%;
+        animation: floatMedium 25s ease-in-out infinite reverse;
+        filter: blur(60px);
+    }
+
+    .gradient-sphere-3 {
+        position: absolute;
+        width: 60vmax;
+        height: 60vmax;
+        border-radius: 50%;
+        background: radial-gradient(circle, 
+            rgba(239, 68, 68, 0.1) 0%, 
+            rgba(245, 158, 11, 0.05) 30%, 
+            rgba(236, 72, 153, 0.02) 60%, 
+            transparent 100%);
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        animation: pulse 15s ease-in-out infinite;
+        filter: blur(70px);
+    }
+
+    @keyframes floatSlow {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        33% { transform: translate(3%, -3%) scale(1.1); }
+        66% { transform: translate(-2%, 2%) scale(0.95); }
+    }
+
+    @keyframes floatMedium {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        25% { transform: translate(4%, -4%) scale(1.15); }
+        50% { transform: translate(-3%, 3%) scale(0.9); }
+        75% { transform: translate(2%, -2%) scale(1.05); }
+    }
+
+    @keyframes pulse {
+        0%, 100% { 
+            opacity: 0.3;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        50% { 
+            opacity: 0.6;
+            transform: translate(-50%, -50%) scale(1.3);
+        }
+    }
+
+    /* Декоративные звездочки */
+    .decorative-star {
+        position: fixed;
+        color: rgba(255, 255, 255, 0.15);
+        font-size: 2rem;
+        pointer-events: none;
+        animation: floatStar 10s linear infinite;
+        z-index: 0;
+    }
+
+    @keyframes floatStar {
+        from { transform: rotate(0deg) translateY(0); }
+        to { transform: rotate(360deg) translateY(-20px); }
+    }
+
+    /* ===== ОСНОВНОЙ КОНТЕЙНЕР ===== */
+    .excluded-content {
+        width: 100%;
+        max-width: 1600px;
+        margin: 2rem auto 0;
+        padding: 120px 0 2rem;
+        animation: fadeIn 0.6s ease-out;
+        position: relative;
+        z-index: 1;
+    }
+
+    @keyframes fadeIn {
+        from { 
+            opacity: 0; 
+            transform: translateY(20px); 
+        }
+        to { 
+            opacity: 1; 
+            transform: translateY(0); 
+        }
+    }
+
+    /* ===== ВЕРХНЯЯ ПАНЕЛЬ ===== */
+    .top-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+        padding: 1.5rem 2rem;
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+        border-radius: 30px;
+        box-shadow: var(--shadow);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .top-bar::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(239, 68, 68, 0.1) 0%, transparent 70%);
+        animation: rotate 30s linear infinite;
+        pointer-events: none;
+    }
+
+    .top-bar::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, var(--accent-red), var(--accent-orange), transparent);
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .title-section {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .title-section i {
+        font-size: 2rem;
+        color: var(--accent-red);
+        filter: drop-shadow(0 0 20px rgba(239, 68, 68, 0.5));
+        animation: floatIcon 3s ease-in-out infinite;
+    }
+
+    @keyframes floatIcon {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        50% { transform: translateY(-5px) rotate(5deg); }
+    }
+
+    .title-section h1 {
+        font-size: 2rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #fff, var(--accent-red), var(--accent-orange));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        margin: 0;
+        letter-spacing: -0.5px;
+    }
+
+    /* Кнопка обновления */
+    .refresh-button {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.8rem 1.5rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: var(--glass-border);
+        border-radius: 40px;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        backdrop-filter: var(--glass-blur);
+    }
+
+    .refresh-button:hover {
+        background: rgba(239, 68, 68, 0.1);
+        border-color: var(--accent-red);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .refresh-button i {
+        transition: transform 0.5s ease;
+    }
+
+    .refresh-button:hover i {
+        transform: rotate(180deg);
+    }
+
+    .refresh-button.loading i {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    /* Кнопка экспорта */
+    .export-button {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.8rem 1.5rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: var(--glass-border);
+        border-radius: 40px;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        backdrop-filter: var(--glass-blur);
+        margin-left: 1rem;
+    }
+
+    .export-button:hover {
+        background: rgba(16, 185, 129, 0.1);
+        border-color: var(--accent-green);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    /* ===== СТАТИСТИКА ===== */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+        border-radius: 24px;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--accent-red);
+        box-shadow: 0 10px 30px rgba(239, 68, 68, 0.2);
+    }
+
+    .stat-card.active {
+        border-color: var(--accent-red);
+        box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3);
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(circle at 20% 30%, rgba(239, 68, 68, 0.1) 0%, transparent 70%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        pointer-events: none;
+    }
+
+    .stat-card:hover::before {
+        opacity: 1;
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .stat-icon.total {
+        background: rgba(139, 92, 246, 0.15);
+        color: var(--accent-purple);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+    }
+
+    .stat-icon.rejected {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--accent-red);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .stat-icon.excluded {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--accent-orange);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .stat-icon.blacklisted {
+        background: rgba(0, 0, 0, 0.3);
+        color: #ffffff;
+        border: 1px solid var(--accent-red);
+    }
+
+    .stat-info {
+        flex: 1;
+    }
+
+    .stat-label {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-number {
+        font-size: 2.2rem;
+        font-weight: 800;
+        line-height: 1;
+        background: linear-gradient(135deg, #fff, #e0e0e0);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        letter-spacing: -1px;
+    }
+
+    /* ===== ФИЛЬТРЫ ===== */
+    .filters-section {
+        display: flex;
+        gap: 0.8rem;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+    }
+
+    .filter-button {
+        padding: 0.8rem 1.8rem;
+        border-radius: 40px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: var(--glass-border);
+        background: rgba(20, 20, 30, 0.2);
+        backdrop-filter: var(--glass-blur);
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .filter-button:hover {
+        background: rgba(239, 68, 68, 0.15);
+        border-color: var(--accent-red);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .filter-button.active {
+        background: var(--gradient-red);
+        color: white;
+        border-color: transparent;
+        box-shadow: 0 8px 25px rgba(239, 68, 68, 0.3);
+    }
+
+    .filter-button i {
+        font-size: 1rem;
+    }
+
+    .filter-button .count {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 0.2rem 0.6rem;
+        border-radius: 30px;
+        font-size: 0.8rem;
+        margin-left: 0.3rem;
+    }
+
+    .filter-button.active .count {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* ===== ПОИСК ===== */
+    .search-section {
+        margin-bottom: 2rem;
+        position: relative;
+    }
+
+    .search-box {
+        position: relative;
+        max-width: 400px;
+    }
+
+    .search-box i {
+        position: absolute;
+        left: 1.2rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+        font-size: 1rem;
+        z-index: 1;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 1rem 1rem 1rem 3rem;
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+        border-radius: 60px;
+        color: var(--text-primary);
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: var(--accent-red);
+        box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15);
+        background: rgba(20, 20, 30, 0.6);
+    }
+
+    .search-clear {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: 50%;
+        transition: all 0.2s ease;
+    }
+
+    .search-clear:hover {
+        color: var(--accent-red);
+        background: rgba(239, 68, 68, 0.1);
+    }
+
+    /* ===== СЕТКА ===== */
+    .excluded-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* ===== КАРТОЧКА ===== */
+    .excluded-card {
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+        border-radius: 30px;
+        padding: 1.5rem;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+    }
+
+    .excluded-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--accent-red);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .excluded-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(239, 68, 68, 0.05) 0%, transparent 70%);
+        opacity: 0;
+        transition: opacity 0.6s ease;
+        pointer-events: none;
+    }
+
+    .excluded-card:hover::before {
+        opacity: 1;
+        animation: rotate 20s linear infinite;
+    }
+
+    /* Заголовок карточки */
+    .card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: var(--glass-border);
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.4rem 1.2rem;
+        border-radius: 60px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        backdrop-filter: var(--glass-blur);
+    }
+
+    .status-badge.rejected {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--accent-red);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .status-badge.excluded {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--accent-orange);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .status-badge.blacklisted {
+        background: rgba(0, 0, 0, 0.5);
+        color: #ffffff;
+        border: 1px solid var(--accent-red);
+    }
+
+    .application-id {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        font-family: monospace;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 0.2rem 0.6rem;
+        border-radius: 20px;
+    }
+
+    /* Информация о пользователе */
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .user-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 18px;
+        border: 2px solid var(--accent-red);
+        object-fit: cover;
+        box-shadow: 0 5px 15px rgba(239, 68, 68, 0.3);
+    }
+
+    .user-details {
+        flex: 1;
+    }
+
+    .user-name {
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.3rem;
+        font-size: 1.2rem;
+    }
+
+    .user-discord {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .user-discord i {
+        color: var(--accent-blue);
+    }
+
+    /* Детали */
+    .user-details-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.8rem;
+        margin-bottom: 1rem;
+    }
+
+    .detail-item {
+        background: rgba(0, 0, 0, 0.2);
+        border: var(--glass-border);
+        border-radius: 16px;
+        padding: 0.8rem;
+    }
+
+    .detail-label {
+        color: var(--text-muted);
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.3rem;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .detail-label i {
+        font-size: 0.7rem;
+        color: var(--accent-red);
+    }
+
+    .detail-value {
+        color: var(--text-primary);
+        font-size: 1rem;
+        font-weight: 500;
+    }
+
+    /* Время */
+    .time-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        margin: 1rem 0;
+        padding: 0.8rem;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 16px;
+        border: var(--glass-border);
+    }
+
+    .time-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--text-muted);
+        font-size: 0.8rem;
+    }
+
+    .time-item i {
+        width: 16px;
+        color: var(--accent-red);
+    }
+
+    /* Информация об администраторе */
+    .reviewed-info {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0.5rem 0;
+        padding: 0.5rem 0.8rem;
+        background: rgba(139, 92, 246, 0.1);
+        border-radius: 12px;
+        border-left: 3px solid var(--accent-purple);
+        font-size: 0.8rem;
+    }
+
+    .reviewed-info i {
+        color: var(--accent-purple);
+    }
+
+    .admin-name {
+        color: var(--accent-purple);
+        font-weight: 600;
+    }
+
+    /* Причина */
+    .reason-info {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0.5rem 0;
+        padding: 0.5rem 0.8rem;
+        background: rgba(239, 68, 68, 0.1);
+        border-radius: 12px;
+        border-left: 3px solid var(--accent-red);
+        font-size: 0.8rem;
+    }
+
+    .reason-info i {
+        color: var(--accent-red);
+    }
+
+    .reason-text {
+        color: var(--accent-red);
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Действия */
+    .card-actions {
+        display: flex;
+        gap: 0.8rem;
+        margin-top: 1.5rem;
+        padding-top: 1rem;
+        border-top: var(--glass-border);
+    }
+
+    .action-button {
+        flex: 1;
+        padding: 0.8rem;
+        border-radius: 16px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        background: rgba(59, 130, 246, 0.1);
+        color: var(--accent-blue);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+
+    .action-button:hover {
+        background: rgba(59, 130, 246, 0.2);
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(59, 130, 246, 0.3);
+    }
+
+    /* Пустое состояние */
+    .empty-state {
+        text-align: center;
+        padding: 5rem 2rem;
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: var(--glass-blur);
+        border-radius: 40px;
+        border: 1px dashed rgba(255, 255, 255, 0.1);
+        grid-column: 1 / -1;
+    }
+
+    .empty-icon {
+        font-size: 5rem;
+        color: var(--text-muted);
+        margin-bottom: 1.5rem;
+        animation: floatIcon 4s ease-in-out infinite;
+    }
+
+    .empty-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.8rem;
+    }
+
+    .empty-text {
+        color: var(--text-secondary);
+        font-size: 1.1rem;
+        margin-bottom: 2rem;
+    }
+
+    /* Скелетон загрузки */
+    .loading-skeleton {
+        animation: pulse 1.5s ease-in-out infinite;
+        pointer-events: none;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    .skeleton-card {
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+        border-radius: 30px;
+        padding: 1.5rem;
+    }
+
+    .skeleton-header {
+        height: 40px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 20px;
+        margin-bottom: 1rem;
+    }
+
+    .skeleton-avatar {
+        width: 60px;
+        height: 60px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 18px;
+        margin-right: 1rem;
+    }
+
+    .skeleton-line {
+        height: 20px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 10px;
+        margin-bottom: 0.5rem;
+    }
+
+    /* ===== МОДАЛЬНОЕ ОКНО ===== */
+    .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: var(--glass-blur);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.4s ease;
+    }
+
+    .modal.show {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .modal-content {
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+        border-radius: 40px;
+        padding: 2.5rem;
+        max-width: 600px;
+        width: 90%;
+        max-height: 85vh;
+        overflow-y: auto;
+        position: relative;
+        transform: translateY(-30px) scale(0.95);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .modal.show .modal-content {
+        transform: translateY(0) scale(1);
+    }
+
+    .modal-content::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .modal-content::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .modal-content::-webkit-scrollbar-thumb {
+        background: var(--accent-red);
+        border-radius: 6px;
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: var(--glass-border);
+    }
+
+    .modal-header h3 {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .modal-header i {
+        color: var(--accent-red);
+        font-size: 1.8rem;
+    }
+
+    .modal-close {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: var(--glass-border);
+        background: rgba(255, 255, 255, 0.02);
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        backdrop-filter: var(--glass-blur);
+    }
+
+    .modal-close:hover {
+        background: rgba(239, 68, 68, 0.15);
+        color: #EF4444;
+        transform: rotate(90deg);
+        border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .modal-body {
+        margin-bottom: 2rem;
+    }
+
+    .modal-footer {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+    }
+
+    .modal-button {
+        padding: 1rem 2rem;
+        border-radius: 60px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+        backdrop-filter: var(--glass-blur);
+    }
+
+    .modal-button.cancel {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-secondary);
+        border: var(--glass-border);
+    }
+
+    .modal-button.cancel:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateY(-2px);
+    }
+
+    /* Профиль в модальном окне */
+    .modal-profile {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 30px;
+        border: var(--glass-border);
+    }
+
+    .modal-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        border: 3px solid var(--accent-red);
+        object-fit: cover;
+        box-shadow: 0 10px 30px rgba(239, 68, 68, 0.3);
+    }
+
+    .modal-user-info {
+        flex: 1;
+    }
+
+    .modal-username {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.3rem;
+    }
+
+    .modal-discord {
+        color: var(--text-secondary);
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .modal-discord i {
+        color: var(--accent-blue);
+    }
+
+    .modal-user-id {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        font-family: monospace;
+        margin-top: 0.5rem;
+        padding: 0.2rem 0.8rem;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 20px;
+        display: inline-block;
+    }
+
+    /* Сетка в модальном окне */
+    .modal-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .modal-field {
+        background: rgba(0, 0, 0, 0.2);
+        border: var(--glass-border);
+        border-radius: 20px;
+        padding: 1.2rem;
+    }
+
+    .modal-field.full-width {
+        grid-column: span 2;
+    }
+
+    .modal-field-label {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .modal-field-label i {
+        color: var(--accent-red);
+    }
+
+    .modal-field-value {
+        color: var(--text-primary);
+        font-size: 1.1rem;
+        font-weight: 500;
+        line-height: 1.6;
+        white-space: pre-wrap;
+    }
+
+    /* Уведомление */
+    .notification {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: var(--glass-blur);
+        border-left: 4px solid var(--accent-green);
+        border-radius: 30px;
+        padding: 1.2rem 2rem;
+        color: var(--text-primary);
+        font-size: 1rem;
+        box-shadow: var(--shadow-lg);
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        z-index: 9999;
+        animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .notification i {
+        color: var(--accent-green);
+        font-size: 1.3rem;
+    }
+
+    .notification.error {
+        border-left-color: var(--accent-red);
+        border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .notification.error i {
+        color: var(--accent-red);
+    }
+
+    @keyframes slideUp {
+        from {
+            transform: translateY(30px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideDown {
+        from {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateY(30px);
+            opacity: 0;
+        }
+    }
+
+    /* ===== АДАПТИВНОСТЬ ===== */
+    @media (max-width: 1200px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 1024px) {
+        .excluded-grid {
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        }
+    }
+
+    @media (max-width: 768px) {
+        .excluded-content {
+            padding: 0 1rem;
+            margin: 1rem auto 0;
+        }
+
+        .top-bar {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+            padding: 1.2rem;
+            border-radius: 24px;
+        }
+
+        .title-section h1 {
+            font-size: 1.5rem;
+        }
+
+        .refresh-button, .export-button {
+            width: 100%;
+            justify-content: center;
+            margin-left: 0;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .filters-section {
+            flex-wrap: wrap;
+        }
+
+        .filter-button {
+            flex: 1;
+            justify-content: center;
+            padding: 0.6rem 1rem;
+            font-size: 0.85rem;
+        }
+
+        .excluded-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .card-actions {
+            flex-direction: column;
+        }
+
+        .modal-profile {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .modal-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .modal-field.full-width {
+            grid-column: span 1;
+        }
+
+        .modal-content {
+            padding: 1.5rem;
+        }
+
+        .modal-avatar {
+            width: 60px;
+            height: 60px;
+        }
+    }
+</style>
+
+<!-- Анимированный фон -->
+<div class="background-animation">
+    <div class="gradient-sphere-1"></div>
+    <div class="gradient-sphere-2"></div>
+    <div class="gradient-sphere-3"></div>
+</div>
+
+<!-- Декоративные звездочки -->
+<div class="decorative-star" style="top: 10%; left: 5%;">✦</div>
+<div class="decorative-star" style="bottom: 15%; right: 8%;">✧</div>
+<div class="decorative-star" style="top: 20%; right: 15%;">✦</div>
+<div class="decorative-star" style="bottom: 25%; left: 12%;">✧</div>
+
+<!-- Эффект параллакса для фона -->
+<script>
+(function() {
+    document.addEventListener('mousemove', (e) => {
+        const spheres = document.querySelectorAll('.gradient-sphere-1, .gradient-sphere-2, .gradient-sphere-3');
+        const mouseX = e.clientX / window.innerWidth;
+        const mouseY = e.clientY / window.innerHeight;
+
+        spheres.forEach((sphere, index) => {
+            const speed = 15 + (index * 5);
+            const x = (mouseX - 0.5) * speed;
+            const y = (mouseY - 0.5) * speed;
+            sphere.style.transform = `translate(${x}px, ${y}px)`;
+        });
+    });
+})();
+</script>
+
+<!-- Основной контент -->
+<div class="excluded-content">
+    <!-- Верхняя панель -->
+    <div class="top-bar">
+        <div class="title-section">
+            <i class="fas fa-user-slash"></i>
+            <h1>Исключенные и отклоненные</h1>
+        </div>
+        
+        <div style="display: flex; gap: 0.5rem;">
+            <button class="export-button" onclick="exportToCSV()" title="Экспорт в CSV">
+                <i class="fas fa-download"></i>
+                <span>Экспорт</span>
+            </button>
+            <button class="refresh-button" onclick="loadExcluded(true)" id="refreshBtn">
+                <i class="fas fa-sync-alt"></i>
+                <span>Обновить</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Статистика -->
+    <div class="stats-grid">
+        <div class="stat-card" onclick="filterExcluded('all')" id="statAll">
+            <div class="stat-icon total">
+                <i class="fas fa-users-slash"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-label">Всего</div>
+                <div class="stat-number" id="totalCount">0</div>
+            </div>
+        </div>
+        <div class="stat-card" onclick="filterExcluded('rejected')" id="statRejected">
+            <div class="stat-icon rejected">
+                <i class="fas fa-times-circle"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-label">Отклонено</div>
+                <div class="stat-number" id="rejectedCount">0</div>
+            </div>
+        </div>
+        <div class="stat-card" onclick="filterExcluded('excluded')" id="statExcluded">
+            <div class="stat-icon excluded">
+                <i class="fas fa-user-minus"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-label">Исключено</div>
+                <div class="stat-number" id="excludedCount">0</div>
+            </div>
+        </div>
+        <div class="stat-card" onclick="filterExcluded('blacklisted')" id="statBlacklisted">
+            <div class="stat-icon blacklisted">
+                <i class="fas fa-ban"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-label">Черный список</div>
+                <div class="stat-number" id="blacklistedCount">0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Фильтры -->
+    <div class="filters-section">
+        <button class="filter-button active" onclick="filterExcluded('all')" id="filterAll">
+            <i class="fas fa-list"></i>
+            Все
+            <span class="count" id="filterTotalCount">0</span>
+        </button>
+        <button class="filter-button" onclick="filterExcluded('rejected')" id="filterRejected">
+            <i class="fas fa-times-circle"></i>
+            Отклоненные
+            <span class="count" id="filterRejectedCount">0</span>
+        </button>
+        <button class="filter-button" onclick="filterExcluded('excluded')" id="filterExcludedBtn">
+            <i class="fas fa-user-minus"></i>
+            Исключенные
+            <span class="count" id="filterExcludedCount">0</span>
+        </button>
+        <button class="filter-button" onclick="filterExcluded('blacklisted')" id="filterBlacklisted">
+            <i class="fas fa-ban"></i>
+            Черный список
+            <span class="count" id="filterBlacklistedCount">0</span>
+        </button>
+    </div>
+
+    <!-- Поиск -->
+    <div class="search-section">
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" class="search-input" id="searchInput" placeholder="Поиск по имени, Discord ID или причине..." oninput="searchExcluded()">
+            <span class="search-clear" onclick="clearSearch()" style="display: none;" id="clearSearchBtn">
+                <i class="fas fa-times"></i>
+            </span>
+        </div>
+    </div>
+
+    <!-- Сетка -->
+    <div class="excluded-grid" id="excludedGrid">
+        <!-- Данные будут загружаться сюда -->
+    </div>
+</div>
+
+<!-- Модальное окно просмотра -->
+<div class="modal" id="viewModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>
+                <i class="fas fa-file-alt"></i>
+                Детали записи
+            </h3>
+            <button class="modal-close" onclick="hideViewModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="viewModalBody">
+            <!-- Контент будет загружаться динамически -->
+        </div>
+        <div class="modal-footer">
+            <button class="modal-button cancel" onclick="hideViewModal()">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    'use strict';
+    
+    let excluded = [];
+    let adminsMap = {};
+    let currentFilter = 'all';
+    let currentSearch = '';
+    let isLoading = false;
+
+    // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
+    function formatDate(dateString) {
+        if (!dateString) return 'Неизвестно';
+        const date = new Date(dateString);
+        return date.toLocaleString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function formatDateShort(dateString) {
+        if (!dateString) return 'Неизвестно';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function truncateText(text, maxLength) {
+        if (!text) return '';
+        if (text.length <= maxLength) return escapeHtml(text);
+        return escapeHtml(text.substring(0, maxLength)) + '...';
+    }
+
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type === 'error' ? 'error' : ''}`;
+        notification.innerHTML = `
+            <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'check-circle'}"></i>
+            <span>${message}</span>
+        `;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.animation = 'slideDown 0.3s ease-in forwards';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    function showLoading() {
+        const grid = document.getElementById('excludedGrid');
+        grid.innerHTML = Array(6).fill(0).map(() => `
+            <div class="skeleton-card loading-skeleton">
+                <div class="skeleton-header"></div>
+                <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+                    <div class="skeleton-avatar"></div>
+                    <div style="flex: 1;">
+                        <div class="skeleton-line" style="width: 70%;"></div>
+                        <div class="skeleton-line" style="width: 50%;"></div>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem;">
+                    <div class="skeleton-line" style="height: 60px;"></div>
+                    <div class="skeleton-line" style="height: 60px;"></div>
+                </div>
+                <div class="skeleton-line" style="height: 80px;"></div>
+                <div class="skeleton-line" style="height: 40px; margin-top: 1rem;"></div>
+            </div>
+        `).join('');
+    }
+
+    // ===== МОДАЛЬНЫЕ ОКНА =====
+    window.showViewModal = function(item) {
+        const modalBody = document.getElementById('viewModalBody');
+        
+        const statusClass = item.status === 'rejected' ? 'rejected' :
+                          item.status === 'excluded' ? 'excluded' :
+                          item.status === 'blacklisted' ? 'blacklisted' : 'rejected';
+        
+        const statusIcon = item.status === 'rejected' ? '❌' :
+                          item.status === 'excluded' ? '⚠️' :
+                          item.status === 'blacklisted' ? '🚫' : '❌';
+        
+        const statusText = item.status === 'rejected' ? 'Отклонен' :
+                          item.status === 'excluded' ? 'Исключен' :
+                          item.status === 'blacklisted' ? 'В черном списке' : 'Отклонен';
+        
+        const adminName = item.reviewed_by ? (adminsMap[item.reviewed_by] || 'Администратор') : null;
+        
+        let actionText = 'Обработал';
+        if (item.status === 'rejected') {
+            actionText = 'Отклонил';
+        } else if (item.status === 'excluded') {
+            actionText = 'Исключил';
+        } else if (item.status === 'blacklisted') {
+            actionText = 'Заблокировал';
+        }
+        
+        // ИСПРАВЛЕНО: используем новые поля из заявки
+        modalBody.innerHTML = `
+            <div class="modal-profile">
+                <img src="${item.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png'}" 
+                     alt="" class="modal-avatar"
+                     onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+                <div class="modal-user-info">
+                    <div class="modal-username">${escapeHtml(item.username)}</div>
+                    <div class="modal-discord">
+                        <i class="fab fa-discord"></i>
+                        ${escapeHtml(item.discord_name)}
+                    </div>
+                    <div class="modal-user-id">ID: ${item.user_id}</div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <span class="status-badge ${statusClass}" style="display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 1rem; border-radius: 50px; font-size: 0.9rem; font-weight: 600;">
+                    ${statusIcon} ${statusText}
+                </span>
+                <span style="color: var(--text-muted);">Заявка #${item.id}</span>
+            </div>
+            
+            ${item.reviewed_by ? `
+                <div class="reviewed-info" style="margin-bottom: 1rem;">
+                    <i class="fas fa-user-shield"></i>
+                    <span>
+                        ${actionText}: <span class="admin-name">${escapeHtml(adminName)}</span>
+                        <span style="color: var(--text-muted); margin-left: 0.5rem;">${formatDate(item.reviewed_at)}</span>
+                    </span>
+                </div>
+            ` : ''}
+            
+            ${item.reject_reason ? `
+                <div class="reason-info" style="margin-bottom: 1rem;">
+                    <i class="fas fa-pen"></i>
+                    <span class="reason-text" style="white-space: normal;">${escapeHtml(item.reject_reason)}</span>
+                </div>
+            ` : ''}
+            
+            <div class="modal-grid">
+                <div class="modal-field">
+                    <div class="modal-field-label">
+                        <i class="fas fa-user"></i>
+                        Полное имя
+                    </div>
+                    <div class="modal-field-value">${escapeHtml(item.full_name) || 'Не указано'}</div>
+                </div>
+                
+                <div class="modal-field">
+                    <div class="modal-field-label">
+                        <i class="fas fa-clock"></i>
+                        Время игры
+                    </div>
+                    <div class="modal-field-value">${escapeHtml(item.play_time_info) || 'Не указано'}</div>
+                </div>
+            </div>
+            
+            <div class="modal-field full-width" style="margin-bottom: 1rem;">
+                <div class="modal-field-label">
+                    <i class="fas fa-server"></i>
+                    Серверы и семьи
+                </div>
+                <div class="modal-field-value" style="max-height: 200px; overflow-y: auto; padding: 0.8rem; background: rgba(0,0,0,0.2); border-radius: 16px;">
+                    ${escapeHtml(item.servers_history) || 'Не указано'}
+                </div>
+            </div>
+            
+            <div class="modal-field full-width" style="margin-bottom: 1rem;">
+                <div class="modal-field-label">
+                    <i class="fas fa-gamepad"></i>
+                    Опыт в МП
+                </div>
+                <div class="modal-field-value" style="max-height: 200px; overflow-y: auto; padding: 0.8rem; background: rgba(0,0,0,0.2); border-radius: 16px;">
+                    ${escapeHtml(item.mp_experience) || 'Не указано'}
+                </div>
+            </div>
+            
+            <div class="modal-field full-width" style="margin-bottom: 1rem;">
+                <div class="modal-field-label">
+                    <i class="fas fa-link"></i>
+                    Откаты с ГГ
+                </div>
+                <div class="modal-field-value" style="max-height: 200px; overflow-y: auto; padding: 0.8rem; background: rgba(0,0,0,0.2); border-radius: 16px;">
+                    ${escapeHtml(item.gung_links) || 'Не указано'}
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; color: var(--text-muted); font-size: 0.85rem;">
+                <i class="fas fa-calendar-alt" style="margin-right: 0.5rem;"></i>
+                Создана: ${formatDate(item.created_at)}
+            </div>
+        `;
+        
+        document.getElementById('viewModal').classList.add('show');
+    };
+
+    window.hideViewModal = function() {
+        document.getElementById('viewModal').classList.remove('show');
+    };
+
+    // ===== ФИЛЬТРАЦИЯ =====
+    window.filterExcluded = function(filter) {
+        currentFilter = filter;
+        
+        document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
+        const filterBtn = document.getElementById(`filter${filter.charAt(0).toUpperCase() + filter.slice(1)}`);
+        if (filterBtn) filterBtn.classList.add('active');
+        
+        document.querySelectorAll('.stat-card').forEach(card => card.classList.remove('active'));
+        if (filter === 'all') document.getElementById('statAll').classList.add('active');
+        else if (filter === 'rejected') document.getElementById('statRejected').classList.add('active');
+        else if (filter === 'excluded') document.getElementById('statExcluded').classList.add('active');
+        else if (filter === 'blacklisted') document.getElementById('statBlacklisted').classList.add('active');
+        
+        renderExcluded();
+    };
+
+    window.searchExcluded = function() {
+        currentSearch = document.getElementById('searchInput').value.toLowerCase();
+        const clearBtn = document.getElementById('clearSearchBtn');
+        
+        if (currentSearch) {
+            clearBtn.style.display = 'block';
+        } else {
+            clearBtn.style.display = 'none';
+        }
+        
+        renderExcluded();
+    };
+
+    window.clearSearch = function() {
+        document.getElementById('searchInput').value = '';
+        currentSearch = '';
+        document.getElementById('clearSearchBtn').style.display = 'none';
+        renderExcluded();
+    };
+
+    // ===== ЗАГРУЗКА ДАННЫХ =====
+    window.loadExcluded = async function(force = false) {
+        if (isLoading && !force) return;
+        
+        isLoading = true;
+        const refreshBtn = document.getElementById('refreshBtn');
+        refreshBtn.classList.add('loading');
+        
+        showLoading();
+        
+        try {
+            const [appsResponse, adminsResponse] = await Promise.all([
+                fetch('/api/admin/applications'),
+                fetch('/api/admin/admins').catch(() => ({ success: false }))
+            ]);
+            
+            const appsData = await appsResponse.json();
+            
+            if (appsData.success) {
+                excluded = appsData.data.filter(app => 
+                    app.status === 'rejected' || 
+                    app.status === 'excluded' || 
+                    app.status === 'blacklisted'
+                );
+                
+                if (adminsResponse.success) {
+                    const adminsData = await adminsResponse.json();
+                    adminsMap = {};
+                    adminsData.data.forEach(admin => {
+                        adminsMap[admin.user_id] = admin.username;
+                    });
+                }
+                
+                updateStats();
+                renderExcluded();
+            } else {
+                throw new Error(appsData.error || 'Ошибка загрузки');
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки данных:', error);
+            showNotification('Ошибка загрузки данных', 'error');
+            
+            const grid = document.getElementById('excludedGrid');
+            grid.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-exclamation-triangle" style="color: #EF4444;"></i>
+                    </div>
+                    <h3 class="empty-title">Ошибка загрузки</h3>
+                    <p class="empty-text">Не удалось загрузить данные</p>
+                    <button onclick="loadExcluded(true)" class="filter-button" style="margin-top: 1rem;">
+                        <i class="fas fa-sync-alt"></i> Повторить
+                    </button>
+                </div>
+            `;
+        } finally {
+            isLoading = false;
+            refreshBtn.classList.remove('loading');
+        }
+    };
+
+    // ===== ОБНОВЛЕНИЕ СТАТИСТИКИ =====
+    function updateStats() {
+        const stats = {
+            total: excluded.length,
+            rejected: excluded.filter(app => app.status === 'rejected').length,
+            excluded: excluded.filter(app => app.status === 'excluded').length,
+            blacklisted: excluded.filter(app => app.status === 'blacklisted').length
+        };
+
+        document.getElementById('totalCount').textContent = stats.total;
+        document.getElementById('rejectedCount').textContent = stats.rejected;
+        document.getElementById('excludedCount').textContent = stats.excluded;
+        document.getElementById('blacklistedCount').textContent = stats.blacklisted;
+
+        document.getElementById('filterTotalCount').textContent = stats.total;
+        document.getElementById('filterRejectedCount').textContent = stats.rejected;
+        document.getElementById('filterExcludedCount').textContent = stats.excluded;
+        document.getElementById('filterBlacklistedCount').textContent = stats.blacklisted;
+    }
+
+    // ===== ОТОБРАЖЕНИЕ =====
+    function renderExcluded() {
+        const grid = document.getElementById('excludedGrid');
+        
+        let filtered = excluded;
+        
+        if (currentFilter !== 'all') {
+            filtered = filtered.filter(app => app.status === currentFilter);
+        }
+        
+        if (currentSearch) {
+            filtered = filtered.filter(app => 
+                (app.username && app.username.toLowerCase().includes(currentSearch)) ||
+                (app.discord_name && app.discord_name.toLowerCase().includes(currentSearch)) ||
+                (app.user_id && app.user_id.includes(currentSearch)) ||
+                (app.reject_reason && app.reject_reason.toLowerCase().includes(currentSearch)) ||
+                (app.full_name && app.full_name.toLowerCase().includes(currentSearch)) ||
+                (app.gung_links && app.gung_links.toLowerCase().includes(currentSearch))
+            );
+        }
+        
+        filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        
+        if (filtered.length === 0) {
+            grid.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-user-slash"></i>
+                    </div>
+                    <h3 class="empty-title">Нет записей</h3>
+                    <p class="empty-text">${getEmptyStateText()}</p>
+                    ${currentSearch ? '<button onclick="clearSearch()" class="filter-button" style="margin-top: 1rem;">Очистить поиск</button>' : ''}
+                </div>
+            `;
+            return;
+        }
+        
+        grid.innerHTML = filtered.map(item => {
+            const statusClass = item.status === 'rejected' ? 'rejected' :
+                              item.status === 'excluded' ? 'excluded' :
+                              item.status === 'blacklisted' ? 'blacklisted' : 'rejected';
+            
+            const statusIcon = item.status === 'rejected' ? '❌' :
+                              item.status === 'excluded' ? '⚠️' :
+                              item.status === 'blacklisted' ? '🚫' : '❌';
+            
+            const statusText = item.status === 'rejected' ? 'Отклонен' :
+                              item.status === 'excluded' ? 'Исключен' :
+                              item.status === 'blacklisted' ? 'В черном списке' : 'Отклонен';
+            
+            const adminName = item.reviewed_by ? (adminsMap[item.reviewed_by] || 'Администратор') : null;
+            
+            let actionText = 'Обработал';
+            if (item.status === 'rejected') {
+                actionText = 'Отклонил';
+            } else if (item.status === 'excluded') {
+                actionText = 'Исключил';
+            } else if (item.status === 'blacklisted') {
+                actionText = 'Заблокировал';
+            }
+            
+            const itemJson = JSON.stringify(item).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            
+            return `
+                <div class="excluded-card">
+                    <div class="card-header">
+                        <span class="status-badge ${statusClass}">
+                            ${statusIcon} ${statusText}
+                        </span>
+                        <span class="application-id">#${item.id}</span>
+                    </div>
+                    
+                    <div class="user-info">
+                        <img src="${item.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png'}" 
+                             alt="" class="user-avatar"
+                             onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+                        <div class="user-details">
+                            <div class="user-name">${escapeHtml(item.username)}</div>
+                            <div class="user-discord">
+                                <i class="fab fa-discord"></i>
+                                ${escapeHtml(item.discord_name)}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="user-details-grid">
+                        <div class="detail-item">
+                            <div class="detail-label">
+                                <i class="fas fa-user"></i>
+                                Имя
+                            </div>
+                            <div class="detail-value">${escapeHtml(item.full_name ? item.full_name.split(',')[0] : 'Не указано')}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">
+                                <i class="fas fa-clock"></i>
+                                Время игры
+                            </div>
+                            <div class="detail-value">${truncateText(item.play_time_info || '', 15)}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="time-info">
+                        <div class="time-item">
+                            <i class="fas fa-calendar-plus"></i>
+                            <span>Создана: ${formatDateShort(item.created_at)}</span>
+                        </div>
+                        ${item.reviewed_at ? `
+                            <div class="time-item">
+                                <i class="fas fa-calendar-check"></i>
+                                <span>${actionText}: ${formatDateShort(item.reviewed_at)}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    ${item.reviewed_by ? `
+                        <div class="reviewed-info">
+                            <i class="fas fa-user-shield"></i>
+                            <span>
+                                ${actionText}: <span class="admin-name">${escapeHtml(adminName)}</span>
+                            </span>
+                        </div>
+                    ` : ''}
+                    
+                    ${item.reject_reason ? `
+                        <div class="reason-info" title="${escapeHtml(item.reject_reason)}">
+                            <i class="fas fa-pen"></i>
+                            <span class="reason-text">${truncateText(item.reject_reason, 50)}</span>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="card-actions">
+                        <button class="action-button view" onclick='showViewModal(${itemJson})'>
+                            <i class="fas fa-eye"></i>
+                            Подробнее
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function getEmptyStateText() {
+        switch(currentFilter) {
+            case 'rejected': return 'Нет отклоненных заявок';
+            case 'excluded': return 'Нет исключенных участников';
+            case 'blacklisted': return 'Нет пользователей в черном списке';
+            default: return 'Нет записей';
+        }
+    }
+
+    // ===== ЭКСПОРТ В CSV (ИСПРАВЛЕНО) =====
+    window.exportToCSV = function() {
+        if (excluded.length === 0) {
+            showNotification('Нет данных для экспорта', 'error');
+            return;
+        }
+        
+        const data = excluded.map(item => ({
+            ID: item.id,
+            'User ID': item.user_id,
+            Имя: item.username,
+            Discord: item.discord_name,
+            Статус: item.status === 'rejected' ? 'Отклонен' : 
+                   item.status === 'excluded' ? 'Исключен' : 'Черный список',
+            'Полное имя': item.full_name || '',
+            'Время игры': item.play_time_info || '',
+            'Серверы': item.servers_history || '',
+            'Опыт в МП': item.mp_experience || '',
+            'Откаты': item.gung_links || '',
+            Причина: item.reject_reason || '',
+            Создана: new Date(item.created_at).toLocaleDateString('ru-RU'),
+            Обработана: item.reviewed_at ? new Date(item.reviewed_at).toLocaleDateString('ru-RU') : ''
+        }));
+        
+        const csv = convertToCSV(data);
+        const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `excluded_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        showNotification(`Экспортировано ${data.length} записей`, 'success');
+    };
+
+    function convertToCSV(arr) {
+        const array = [Object.keys(arr[0])].concat(arr);
+        return array.map(row => {
+            return Object.values(row).map(value => {
+                return typeof value === 'string' ? `"${value.replace(/"/g, '""')}"` : value;
+            }).join(';');
+        }).join('\n');
+    }
+
+    // ===== WEBSOCKET =====
+    function connectWebSocket() {
+        try {
+            const socket = io({
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000
+            });
+            
+            socket.on('connect', () => {
+                console.log('🔌 WebSocket подключен');
+                socket.emit('subscribe_applications');
+            });
+            
+            socket.on('disconnect', () => {
+                console.log('🔌 WebSocket отключен');
+            });
+            
+            socket.on('reconnect', () => {
+                console.log('🔌 WebSocket переподключен');
+                socket.emit('subscribe_applications');
+                loadExcluded();
+            });
+            
+            socket.on('application_updated', () => {
+                loadExcluded();
+            });
+            
+            socket.on('application_deleted', () => {
+                loadExcluded();
+            });
+            
+        } catch (error) {
+            console.error('Ошибка при создании WebSocket:', error);
+        }
+    }
+
+    // ===== ИНИЦИАЛИЗАЦИЯ =====
+    document.addEventListener('DOMContentLoaded', () => {
+        loadExcluded();
+        connectWebSocket();
+        
+        document.getElementById('statAll').classList.add('active');
+    });
+
+    // Закрытие модального окна
+    document.addEventListener('click', (event) => {
+        const modal = document.getElementById('viewModal');
+        if (event.target === modal) {
+            hideViewModal();
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            hideViewModal();
+        }
+    });
+
+})();
+</script>

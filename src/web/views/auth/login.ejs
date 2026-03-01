@@ -1,0 +1,41 @@
+<%
+title = 'Вход в систему';
+%>
+
+<%- include('../layouts/main', { 
+    content: `
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card bg-dark text-white">
+                <div class="card-header">
+                    <h4 class="mb-0">Вход в панель управления</h4>
+                </div>
+                <div class="card-body">
+                    <% if (typeof error !== 'undefined' && error) { %>
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <% if (error === 'auth_failed') { %>
+                                Ошибка авторизации. Попробуйте снова.
+                            <% } else if (error === 'access_denied') { %>
+                                У вас нет прав доступа к панели управления.
+                            <% } else { %>
+                                Произошла ошибка. Попробуйте позже.
+                            <% } %>
+                        </div>
+                    <% } %>
+                    
+                    <p class="card-text">
+                        Для входа в панель управления используйте вашу учетную запись Discord.
+                        Доступ имеют только администраторы бота и владелец.
+                    </p>
+                    <a href="/auth/discord" class="btn btn-primary btn-lg w-100">
+                        <i class="fab fa-discord"></i> Войти через Discord
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+` 
+}) %>

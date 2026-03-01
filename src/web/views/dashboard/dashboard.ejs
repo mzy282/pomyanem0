@@ -1,0 +1,270 @@
+<%
+title = 'Панель управления';
+%>
+
+<%- include('../layouts/main') %>
+
+<style>
+    .dashboard-content {
+        width: 100%;
+        max-width: 1600px;
+        margin: 2rem auto 0;
+        padding: 120px 0 2rem;
+        animation: fadeIn 0.6s ease-out;
+        position: relative;
+        z-index: 1;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.03);
+        border-radius: 30px;
+        padding: 1.8rem;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        border-color: rgba(139, 92, 246, 0.3);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 20px;
+        background: rgba(139, 92, 246, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: #8B5CF6;
+        margin-bottom: 1.5rem;
+        border: 1px solid rgba(139, 92, 246, 0.3);
+    }
+
+    .stat-label {
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #fff, #8B5CF6);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        line-height: 1;
+    }
+
+    .stat-desc {
+        color: rgba(255, 255, 255, 0.4);
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+    }
+
+    .welcome-section {
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.03);
+        border-radius: 30px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .welcome-title {
+        font-size: 2rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #fff, #8B5CF6, #EC4899);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        margin-bottom: 1rem;
+    }
+
+    .welcome-text {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 1.1rem;
+        line-height: 1.6;
+    }
+
+    .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .quick-action-btn {
+        padding: 1.2rem;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 20px;
+        color: white;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .quick-action-btn:hover {
+        background: rgba(139, 92, 246, 0.15);
+        border-color: rgba(139, 92, 246, 0.3);
+        transform: translateY(-2px);
+    }
+
+    .quick-action-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: rgba(139, 92, 246, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #8B5CF6;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+</style>
+
+<div class="dashboard-content">
+    <!-- Приветственная секция -->
+    <div class="welcome-section">
+        <h1 class="welcome-title">
+            Добро пожаловать, <%= user ? user.username : 'Гость' %>!
+        </h1>
+        <p class="welcome-text">
+            Это панель управления семьей KINGSIZE. Здесь вы можете управлять заявками, 
+            просматривать список участников и настраивать работу бота.
+        </p>
+        
+        <div class="quick-actions">
+            <a href="/admin/applications" class="quick-action-btn">
+                <div class="quick-action-icon">
+                    <i class="fas fa-file-signature"></i>
+                </div>
+                <div>
+                    <div style="font-weight: 600;">Заявки</div>
+                    <small style="color: rgba(255,255,255,0.5);">Управление заявками</small>
+                </div>
+            </a>
+            
+            <a href="/admin/members" class="quick-action-btn">
+                <div class="quick-action-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div>
+                    <div style="font-weight: 600;">Участники</div>
+                    <small style="color: rgba(255,255,255,0.5);">Список семьи</small>
+                </div>
+            </a>
+            
+            <a href="/admin/archive" class="quick-action-btn">
+                <div class="quick-action-icon">
+                    <i class="fas fa-archive"></i>
+                </div>
+                <div>
+                    <div style="font-weight: 600;">Архив</div>
+                    <small style="color: rgba(255,255,255,0.5);">Архив заявок</small>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Статистика -->
+    <div class="stats-grid" id="statsContainer">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-file-signature"></i>
+            </div>
+            <div class="stat-label">Всего заявок</div>
+            <div class="stat-value" id="totalApplications">-</div>
+            <div class="stat-desc">За все время</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-label">Ожидают</div>
+            <div class="stat-value" id="pendingApplications">-</div>
+            <div class="stat-desc">Требуют рассмотрения</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-label">Принято</div>
+            <div class="stat-value" id="acceptedApplications">-</div>
+            <div class="stat-desc">Участники семьи</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-label">В семье</div>
+            <div class="stat-value" id="familyMembers">-</div>
+            <div class="stat-desc">Активных участников</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function loadStats() {
+        try {
+            const response = await fetch('/api/stats')
+            const data = await response.json()
+            
+            if (data.success) {
+                document.getElementById('totalApplications').textContent = data.stats?.applications?.total || 0
+                document.getElementById('pendingApplications').textContent = data.stats?.applications?.pending || 0
+                document.getElementById('acceptedApplications').textContent = data.stats?.applications?.accepted || 0
+                document.getElementById('familyMembers').textContent = data.stats?.members || 0
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки статистики:', error)
+            document.getElementById('totalApplications').textContent = '0'
+            document.getElementById('pendingApplications').textContent = '0'
+            document.getElementById('acceptedApplications').textContent = '0'
+            document.getElementById('familyMembers').textContent = '0'
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadStats)
+</script>

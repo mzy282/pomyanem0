@@ -1,0 +1,27 @@
+<% 
+title = 'Ошибка сервера';
+%>
+
+<%
+content = `
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <div class="error-icon mb-4">
+                <i class="fas fa-exclamation-triangle" style="font-size: 5rem; color: #EF4444;"></i>
+            </div>
+            <h1 class="display-4 mb-3">500</h1>
+            <h2 class="h4 mb-4">Ошибка сервера</h2>
+            <p class="text-secondary mb-4">
+                ${typeof message !== 'undefined' ? message : 'Произошла внутренняя ошибка сервера'}
+            </p>
+            <a href="/" class="btn btn-primary">
+                <i class="fas fa-home"></i> На главную
+            </a>
+        </div>
+    </div>
+</div>
+`;
+%>
+
+<%- include('../layouts/main') %>с

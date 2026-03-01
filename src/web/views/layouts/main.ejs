@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Заголовок страницы -->
+    <title><%= typeof title !== 'undefined' ? title + ' - ' : '' %>KINGSIZE Bot</title>
+    
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Orbitron:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/favicon.png">
+    
+    <style>
+        :root {
+            --discord-blue: #5865F2;
+            --discord-green: #57F287;
+            --discord-yellow: #FEE75C;
+            --discord-red: #ED4245;
+            --discord-dark: #2C2F33;
+            --discord-darker: #23272A;
+            --bg-primary: #0A0A0A;
+            --bg-secondary: #111111;
+            --bg-card: rgba(26, 26, 26, 0.6);
+            --bg-card-hover: rgba(34, 34, 34, 0.8);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --border-color-hover: rgba(139, 92, 246, 0.3);
+            --text-primary: #FFFFFF;
+            --text-secondary: rgba(255, 255, 255, 0.7);
+            --text-muted: rgba(255, 255, 255, 0.4);
+            --accent-blue: #3B82F6;
+            --accent-green: #10B981;
+            --accent-purple: #8B5CF6;
+            --accent-voice: #EC4899;
+            --accent-gold: #F59E0B;
+            --accent-archive: #6B7280;
+            --gradient-primary: linear-gradient(135deg, #3B82F6, #8B5CF6, #EC4899);
+            --gradient-archive: linear-gradient(135deg, #6B7280, #4B5563);
+            --shadow-sm: 0 4px 15px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 8px 25px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 15px 40px rgba(0, 0, 0, 0.5);
+            --glass-bg: rgba(20, 20, 30, 0.4);
+            --glass-border: 1px solid rgba(255, 255, 255, 0.05);
+            --glass-border-hover: 1px solid rgba(139, 92, 246, 0.2);
+            --glass-blur: blur(15px);
+            --header-height: 70px;
+        }
+        
+        /* Общие стили */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            background-color: var(--bg-primary);
+            min-height: 100vh;
+            scroll-behavior: smooth;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+            position: relative;
+            overflow-x: hidden;
+            padding-top: 0;
+        }
+        
+        /* Анимированный фон */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 70%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 40% 80%, rgba(236, 72, 153, 0.1) 0%, transparent 50%);
+            z-index: -2;
+            pointer-events: none;
+        }
+        
+        /* Частицы фона */
+        .bg-particle {
+            position: fixed;
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: -1;
+            animation: floatParticle 20s linear infinite;
+        }
+        
+        @keyframes floatParticle {
+            0% {
+                transform: translateY(100vh) scale(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100vh) scale(1);
+                opacity: 0;
+            }
+        }
+        
+        /* Верхняя панель с часами и статусом */
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--header-height);
+            background: rgba(10, 10, 15, 0.4);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            z-index: 998;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .header-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .header-time {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 6px 15px;
+            border-radius: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+        
+        .header-time i {
+            color: var(--accent-green);
+            font-size: 0.8rem;
+        }
+        
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 6px 15px;
+            border-radius: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            animation: pulse 2s infinite;
+        }
+        
+        .status-text {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        
+        /* ===== КНОПКА МЕНЮ ===== */
+        .menu-toggle {
+            position: fixed;
+            top: calc(var(--header-height) + 20px);
+            left: 20px;
+            width: 55px;
+            height: 55px;
+            background: rgba(20, 20, 30, 0.3);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+            overflow: hidden;
+        }
+        
+        .menu-toggle::before {
+            content: '';
+            position: absolute;
+            top: var(--y, 50%);
+            left: var(--x, 50%);
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, transparent 70%);
+            transform: translate(-50%, -50%);
+            transition: width 0.5s, height 0.5s;
+            pointer-events: none;
+        }
+        
+        .menu-toggle:hover::before {
+            width: 200px;
+            height: 200px;
+        }
+        
+        .menu-toggle:hover {
+            transform: scale(1.1) translateY(-2px);
+            border-color: rgba(139, 92, 246, 0.3);
+            box-shadow: 0 12px 30px rgba(139, 92, 246, 0.3);
+            background: rgba(30, 30, 40, 0.4);
+        }
+        
+        .menu-toggle:active {
+            transform: scale(0.95);
+        }
+        
+        .menu-toggle i {
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+        
+        /* ===== ВЫПАДАЮЩЕЕ МЕНЮ ===== */
+        .dropdown-menu-custom {
+            position: fixed;
+            top: calc(var(--header-height) + 90px);
+            left: 20px;
+            width: 320px;
+            background: rgba(15, 15, 20, 0.4);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 24px;
+            box-shadow: var(--shadow-lg), 0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(-20px) translateY(-10px);
+            transition: all 0.4s cubic-bezier(0.2, 0, 0, 1);
+            overflow: hidden;
+            max-height: calc(100vh - 150px);
+            overflow-y: auto;
+        }
+        
+        .dropdown-menu-custom::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        .dropdown-menu-custom::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        
+        .dropdown-menu-custom::-webkit-scrollbar-thumb {
+            background: rgba(139, 92, 246, 0.3);
+            border-radius: 4px;
+        }
+        
+        .dropdown-menu-custom::-webkit-scrollbar-thumb:hover {
+            background: rgba(139, 92, 246, 0.5);
+        }
+        
+        .dropdown-menu-custom.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0) translateY(0);
+        }
+        
+        /* Информация о пользователе */
+        .dropdown-user {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            background: rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .dropdown-user::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            opacity: 0.3;
+            animation: rotate 20s linear infinite;
+        }
+        
+        .dropdown-user-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 18px;
+            object-fit: cover;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 1;
+            box-shadow: var(--shadow-md);
+        }
+        
+        .dropdown-user-avatar.owner {
+            border: 2px solid #F59E0B;
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+        }
+        
+        .dropdown-user-avatar.superadmin {
+            border: 2px solid var(--accent-purple);
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+        }
+        
+        .dropdown-user-avatar.admin {
+            border: 2px solid var(--accent-blue);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+        }
+        
+        .dropdown-user-info {
+            flex: 1;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .dropdown-user-name {
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.3rem;
+            font-size: 1.1rem;
+            letter-spacing: 0.3px;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+        
+        .dropdown-user-role {
+            font-size: 0.75rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.25rem 1rem;
+            border-radius: 50px;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+        
+        .role-owner {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(236, 72, 153, 0.1));
+            color: #F59E0B;
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+        
+        .role-superadmin {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(139, 92, 246, 0.1));
+            color: var(--accent-purple);
+            border-color: rgba(139, 92, 246, 0.3);
+        }
+        
+        .role-admin {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.1));
+            color: var(--accent-blue);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+        
+        .role-user {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-secondary);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Ссылки меню */
+        .dropdown-links {
+            padding: 0.8rem;
+        }
+        
+        .dropdown-link {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.9rem 1.2rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            position: relative;
+            border-radius: 14px;
+            margin: 0.2rem 0;
+            background: transparent;
+        }
+        
+        .dropdown-link::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 60%;
+            width: 3px;
+            background: linear-gradient(to bottom, var(--accent-blue), var(--accent-purple), var(--accent-voice));
+            border-radius: 0 3px 3px 0;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+        }
+        
+        .dropdown-link:hover {
+            background: rgba(139, 92, 246, 0.1);
+            backdrop-filter: blur(5px);
+            color: white;
+            transform: translateX(5px);
+        }
+        
+        .dropdown-link:hover::before {
+            opacity: 1;
+        }
+        
+        .dropdown-link i {
+            width: 24px;
+            font-size: 1.2rem;
+            color: var(--accent-blue);
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .dropdown-link:hover i {
+            color: var(--accent-purple);
+            transform: scale(1.1);
+        }
+        
+        .dropdown-link span {
+            flex: 1;
+            font-weight: 500;
+            letter-spacing: 0.2px;
+        }
+        
+        .dropdown-link.admin-link i {
+            color: var(--accent-purple);
+        }
+        
+        .dropdown-link.owner-link i {
+            color: #F59E0B;
+        }
+        
+        .dropdown-link.applications-link i {
+            color: var(--accent-gold);
+        }
+        
+        .dropdown-link.archive-link i {
+            color: var(--accent-archive);
+        }
+        
+        .dropdown-link.active {
+            background: rgba(139, 92, 246, 0.15);
+            color: white;
+        }
+        
+        .dropdown-link.active i {
+            color: var(--accent-purple);
+        }
+        
+        .dropdown-link.active::before {
+            opacity: 1;
+        }
+        
+        /* Бейдж для заявок */
+        .badge-applications {
+            background: linear-gradient(135deg, var(--accent-gold), var(--accent-purple));
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 0.25rem 0.6rem;
+            border-radius: 30px;
+            min-width: 24px;
+            text-align: center;
+            animation: pulseBadge 2s infinite;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+        }
+        
+        @keyframes pulseBadge {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 25px rgba(245, 158, 11, 0.6);
+            }
+        }
+        
+        /* Разделитель */
+        .dropdown-divider-custom {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), rgba(139, 92, 246, 0.2), rgba(255, 255, 255, 0.1), transparent);
+            margin: 0.8rem 1rem;
+        }
+        
+        /* Кнопка выхода */
+        .dropdown-logout {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.5rem;
+            color: #ff8a8a;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-top: 1px solid rgba(255, 255, 255, 0.03);
+            background: rgba(255, 107, 107, 0.05);
+            backdrop-filter: blur(5px);
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+        
+        .dropdown-logout:hover {
+            background: rgba(255, 107, 107, 0.15);
+            color: #ffb3b3;
+            padding-left: 2rem;
+        }
+        
+        .dropdown-logout i {
+            width: 24px;
+            font-size: 1.2rem;
+            text-align: center;
+        }
+        
+        /* Затемнение фона */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+        }
+        
+        .overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        /* Кнопка для прокрутки вверх */
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            background: rgba(20, 20, 30, 0.4);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 50%;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            z-index: 997;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-md);
+        }
+        
+        .scroll-top.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .scroll-top:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 25px rgba(139, 92, 246, 0.3);
+        }
+        
+        /* Анимации */
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Уведомление (Toast) */
+        .toast-notification {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(20, 20, 30, 0.4);
+            backdrop-filter: var(--glass-blur);
+            border-left: 4px solid var(--accent-green);
+            border-radius: 16px;
+            padding: 1rem 2rem;
+            color: var(--text-primary);
+            font-size: 1rem;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            z-index: 9999;
+            transition: transform 0.3s ease;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            min-width: 300px;
+            max-width: 500px;
+        }
+        
+        .toast-notification.show {
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        .toast-notification i {
+            color: var(--accent-green);
+            font-size: 1.3rem;
+        }
+        
+        .toast-notification.error {
+            border-left-color: var(--accent-red);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+        
+        .toast-notification.error i {
+            color: var(--accent-red);
+        }
+        
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            .top-header {
+                padding: 0 15px;
+            }
+            
+            .header-time span, .header-status span {
+                display: none;
+            }
+            
+            .header-time, .header-status {
+                padding: 6px 10px;
+            }
+            
+            .dropdown-menu-custom {
+                width: calc(100% - 40px);
+                left: 20px;
+                right: 20px;
+                top: calc(var(--header-height) + 70px);
+            }
+            
+            .menu-toggle {
+                width: 50px;
+                height: 50px;
+                font-size: 1.3rem;
+                top: calc(var(--header-height) + 15px);
+            }
+            
+            .scroll-top {
+                bottom: 20px;
+                right: 20px;
+                width: 45px;
+                height: 45px;
+            }
+            
+            .toast-notification {
+                min-width: 250px;
+                padding: 0.8rem 1.5rem;
+                font-size: 0.9rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .dropdown-user {
+                padding: 1.2rem;
+            }
+            
+            .dropdown-user-avatar {
+                width: 50px;
+                height: 50px;
+            }
+            
+            .dropdown-link {
+                padding: 0.8rem 1rem;
+            }
+        }
+    </style>
+    
+    <!-- Дополнительные стили для текущей страницы -->
+    <% if (typeof styles !== 'undefined') { %>
+        <%- styles %>
+    <% } %>
+</head>
+<body>
+    <!-- Генерация частиц фона -->
+    <script>
+        (function() {
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'bg-particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 20 + 's';
+                particle.style.animationDuration = (Math.random() * 20 + 15) + 's';
+                particle.style.opacity = Math.random() * 0.5;
+                particle.style.width = (Math.random() * 6 + 2) + 'px';
+                particle.style.height = particle.style.width;
+                document.body.appendChild(particle);
+            }
+        })();
+    </script>
+
+    <!-- Верхняя панель с часами -->
+    <div class="top-header">
+        <div class="header-info">
+            <div class="header-time" id="currentTime">
+                <i class="far fa-clock"></i>
+                <span>--:--:--</span>
+            </div>
+            <div class="header-status">
+                <div class="status-dot"></div>
+                <span class="status-text">Система работает</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Кнопка меню -->
+    <button class="menu-toggle" id="menuToggle" aria-label="Открыть меню">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Затемнение фона -->
+    <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+
+    <!-- Выпадающее меню -->
+    <div class="dropdown-menu-custom" id="dropdownMenu">
+        <% 
+        // Безопасно определяем переменные с проверкой на существование
+        const safeUser = typeof user !== 'undefined' ? user : null;
+        const safeCurrentUrl = typeof currentUrl !== 'undefined' ? currentUrl : '';
+        const safeActivePage = typeof activePage !== 'undefined' ? activePage : '';
+        const safeEnv = typeof env !== 'undefined' ? env : {};
+        
+        if (safeUser) { 
+            const BOT_OWNER_ID = safeEnv.BOT_OWNER_ID || '';
+            const userRole = safeUser.permissions && safeUser.permissions.role ? safeUser.permissions.role : null;
+            const isOwner = safeUser.user_id === BOT_OWNER_ID;
+            const isSuperAdmin = userRole === 'superadmin';
+            const isAdmin = isOwner || isSuperAdmin || userRole === 'admin';
+            
+            let avatarClass = '';
+            let roleClass = '';
+            let roleIcon = '';
+            let roleName = '';
+            
+            if (isOwner) {
+                avatarClass = 'owner';
+                roleClass = 'role-owner';
+                roleIcon = '👑';
+                roleName = 'Владелец';
+            } else if (isSuperAdmin) {
+                avatarClass = 'superadmin';
+                roleClass = 'role-superadmin';
+                roleIcon = '⚜️';
+                roleName = 'Супер-админ';
+            } else if (userRole === 'admin') {
+                avatarClass = 'admin';
+                roleClass = 'role-admin';
+                roleIcon = '🛡️';
+                roleName = 'Администратор';
+            } else {
+                avatarClass = '';
+                roleClass = 'role-user';
+                roleIcon = '👤';
+                roleName = 'Пользователь';
+            }
+        %>
+            <!-- Информация о пользователе -->
+            <div class="dropdown-user">
+                <img src="<%= safeUser.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png' %>" 
+                     alt="Аватар" class="dropdown-user-avatar <%= avatarClass %>"
+                     onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+                <div class="dropdown-user-info">
+                    <div class="dropdown-user-name"><%= safeUser.username || 'Пользователь' %></div>
+                    <div class="dropdown-user-role <%= roleClass %>">
+                        <%= roleIcon %> <%= roleName %>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ссылки меню -->
+            <div class="dropdown-links">
+                <a href="/" class="dropdown-link <%= safeCurrentUrl === '/' ? 'active' : '' %>">
+                    <i class="fas fa-home"></i>
+                    <span>Главная</span>
+                </a>
+
+                <a href="/dashboard" class="dropdown-link <%= safeActivePage === 'dashboard' ? 'active' : '' %>">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Дашборд</span>
+                </a>
+
+                <% if (isAdmin) { %>
+                    <!-- Админ-панель -->
+                    <a href="/admin" class="dropdown-link admin-link <%= safeActivePage === 'admin' ? 'active' : '' %>">
+                        <i class="fas fa-crown"></i>
+                        <span>Админ-панель</span>
+                    </a>
+                    
+                    <!-- Заявки -->
+                    <a href="/admin/applications" class="dropdown-link applications-link <%= safeActivePage === 'applications' ? 'active' : '' %>" id="applicationsLink">
+                        <i class="fas fa-file-signature"></i>
+                        <span>Заявки в семью</span>
+                        <span class="badge-applications" id="pendingApplicationsBadge" style="display: none;">0</span>
+                    </a>
+
+                    <!-- Члены семьи -->
+                    <a href="/admin/members" class="dropdown-link members-link <%= safeActivePage === 'members' ? 'active' : '' %>">
+                        <i class="fas fa-users"></i>
+                        <span>Члены семьи</span>
+                    </a>
+
+                    <!-- Исключенные -->
+                    <a href="/admin/excluded" class="dropdown-link excluded-link <%= safeActivePage === 'excluded' ? 'active' : '' %>">
+                        <i class="fas fa-user-slash"></i>
+                        <span>Исключенные</span>
+                    </a>
+
+                    <!-- Архив -->
+                    <a href="/admin/archive" class="dropdown-link archive-link <%= safeActivePage === 'archive' ? 'active' : '' %>">
+                        <i class="fas fa-archive"></i>
+                        <span>Архив заявок</span>
+                    </a>
+                <% } %>
+
+                <% if (isOwner || isSuperAdmin) { %>
+                    <!-- Настройки бота (только для владельца и суперадмина) -->
+                    <a href="/admin/bot-settings" class="dropdown-link owner-link <%= safeActivePage === 'bot-settings' ? 'active' : '' %>">
+                        <i class="fas fa-cog"></i>
+                        <span>Настройки бота</span>
+                    </a>
+                <% } %>
+            </div>
+
+            <!-- Выход -->
+            <a href="/auth/logout" class="dropdown-logout">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Выйти</span>
+            </a>
+
+        <% } else { %>
+            <!-- Для неавторизованных -->
+            <div class="dropdown-links">
+                <a href="/" class="dropdown-link <%= safeCurrentUrl === '/' ? 'active' : '' %>">
+                    <i class="fas fa-home"></i>
+                    <span>Главная</span>
+                </a>
+                
+                <div class="dropdown-divider-custom"></div>
+                
+                <a href="/auth/login" class="dropdown-link">
+                    <i class="fab fa-discord"></i>
+                    <span>Войти через Discord</span>
+                </a>
+            </div>
+        <% } %>
+    </div>
+
+    <!-- Кнопка прокрутки вверх -->
+    <button class="scroll-top" id="scrollTop" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <!-- Контейнер для уведомлений -->
+    <div id="toastContainer"></div>
+
+    <!-- Скрипты -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        (function() {
+            'use strict';
+            
+            // Элементы
+            const menuToggle = document.getElementById('menuToggle');
+            const menu = document.getElementById('dropdownMenu');
+            const overlay = document.getElementById('overlay');
+            const scrollTop = document.getElementById('scrollTop');
+            const timeElement = document.getElementById('currentTime');
+            
+            // Функция переключения меню
+            window.toggleMenu = function() {
+                menu.classList.toggle('show');
+                overlay.classList.toggle('show');
+                
+                const icon = menuToggle.querySelector('i');
+                if (menu.classList.contains('show')) {
+                    icon.classList.remove('fa-bars');
+                    icon.classList.add('fa-times');
+                } else {
+                    icon.classList.remove('fa-times');
+                    icon.classList.add('fa-bars');
+                }
+            };
+            
+            // Обработчик клика по кнопке меню
+            if (menuToggle) {
+                menuToggle.addEventListener('click', toggleMenu);
+            }
+            
+            // Закрытие по Escape
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape' && menu && menu.classList.contains('show')) {
+                    toggleMenu();
+                }
+            });
+            
+            // Эффект свечения за кнопкой
+            if (menuToggle) {
+                menuToggle.addEventListener('mousemove', function(e) {
+                    const rect = this.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    this.style.setProperty('--x', x + 'px');
+                    this.style.setProperty('--y', y + 'px');
+                });
+            }
+            
+            // Показывать/скрывать кнопку прокрутки вверх
+            window.addEventListener('scroll', function() {
+                if (window.scrollY > 300) {
+                    scrollTop.classList.add('show');
+                } else {
+                    scrollTop.classList.remove('show');
+                }
+            });
+            
+            // Обновление времени
+            function updateTime() {
+                if (!timeElement) return;
+                
+                const now = new Date();
+                const timeString = now.toLocaleTimeString('ru-RU', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                const timeSpan = timeElement.querySelector('span');
+                if (timeSpan) {
+                    timeSpan.textContent = timeString;
+                }
+            }
+            
+            updateTime();
+            setInterval(updateTime, 1000);
+            
+            // Функция для показа уведомлений (глобальная)
+            window.showToast = function(message, type = 'success', duration = 3000) {
+                const container = document.getElementById('toastContainer');
+                const toast = document.createElement('div');
+                toast.className = `toast-notification ${type === 'error' ? 'error' : ''}`;
+                toast.innerHTML = `
+                    <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'check-circle'}"></i>
+                    <span>${message}</span>
+                `;
+                container.appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.classList.add('show');
+                }, 10);
+                
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => toast.remove(), 300);
+                }, duration);
+            };
+            
+            // Загрузка количества ожидающих заявок
+            async function loadPendingApplications() {
+                try {
+                    const response = await fetch('/api/admin/applications/stats');
+                    const data = await response.json();
+                    
+                    const badge = document.getElementById('pendingApplicationsBadge');
+                    if (badge && data.success && data.data && data.data.pending > 0) {
+                        badge.textContent = data.data.pending;
+                        badge.style.display = 'inline-block';
+                        
+                        const link = document.getElementById('applicationsLink');
+                        if (link) {
+                            link.style.background = 'rgba(245, 158, 11, 0.05)';
+                        }
+                    } else if (badge) {
+                        badge.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Ошибка загрузки количества заявок:', error);
+                }
+            }
+            
+            // Загружаем при старте и каждые 30 секунд
+            loadPendingApplications();
+            setInterval(loadPendingApplications, 30000);
+            
+            // Закрытие меню при клике на ссылку (для мобильных)
+            const links = document.querySelectorAll('.dropdown-link, .dropdown-logout');
+            links.forEach(link => {
+                link.addEventListener('click', () => {
+                    if (window.innerWidth <= 768 && menu.classList.contains('show')) {
+                        setTimeout(toggleMenu, 200);
+                    }
+                });
+            });
+            
+            // Предотвращаем закрытие меню при клике внутри него
+            if (menu) {
+                menu.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+            }
+            
+            // Обработка ошибок изображений
+            document.querySelectorAll('img').forEach(img => {
+                img.addEventListener('error', function() {
+                    if (!this.src.includes('embed/avatars/0.png')) {
+                        this.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                    }
+                });
+            });
+            
+        })();
+    </script>
+    
+    <!-- Дополнительные скрипты для текущей страницы -->
+    <% if (typeof scripts !== 'undefined') { %>
+        <%- scripts %>
+    <% } %>
+</body>
+</html>

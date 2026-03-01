@@ -1,0 +1,953 @@
+<% 
+title = 'Главная';
+%>
+
+<%- include('layouts/main') %>
+
+<!-- Подключаем Google Fonts для красивых шрифтов -->
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Orbitron:wght@400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700;800;900&family=Raleway:wght@300;400;500;600;700;800&family=Great+Vibes&family=Cormorant+Garamond:wght@300;400;500;600;700&family=Unbounded:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+    /* ===== ОСНОВНЫЕ ПЕРЕМЕННЫЕ ===== */
+    :root {
+        --bg-primary: #0A0A0A;
+        --bg-secondary: #111111;
+        --bg-card: rgba(26, 26, 26, 0.3); /* Более прозрачный для стекла */
+        --bg-card-hover: rgba(34, 34, 34, 0.5);
+        --border-color: rgba(255, 255, 255, 0.1);
+        --border-color-hover: rgba(139, 92, 246, 0.3);
+        --text-primary: #FFFFFF;
+        --text-secondary: rgba(255, 255, 255, 0.7);
+        --text-muted: rgba(255, 255, 255, 0.4);
+        --accent-blue: #3B82F6;
+        --accent-green: #10B981;
+        --accent-yellow: #F59E0B;
+        --accent-red: #EF4444;
+        --accent-purple: #8B5CF6;
+        --accent-voice: #EC4899;
+        --gradient-primary: linear-gradient(135deg, #3B82F6, #8B5CF6, #EC4899);
+        --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        --shadow-lg: 0 15px 40px rgba(0, 0, 0, 0.5);
+        --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+        --glass-border-hover: 1px solid rgba(255, 255, 255, 0.2);
+        --glass-blur: blur(12px);
+        
+        /* Красивые шрифты */
+        --font-display: 'Unbounded', 'Orbitron', 'Montserrat', sans-serif;
+        --font-title: 'Playfair Display', 'Cormorant Garamond', serif;
+        --font-subtitle: 'Raleway', 'Montserrat', sans-serif;
+        --font-logo: 'Montserrat', 'Orbitron', sans-serif;
+        --font-cursive: 'Great Vibes', cursive;
+    }
+
+    /* ===== ГЛАВНАЯ СТРАНИЦА ===== */
+    .home-page {
+        min-height: 100vh;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+        background: var(--bg-primary);
+    }
+
+    /* ===== АНИМИРОВАННЫЙ ФОН ===== */
+    .background-animation {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 0;
+        overflow: hidden;
+    }
+
+    .gradient-sphere-1 {
+        position: absolute;
+        width: 80vmax;
+        height: 80vmax;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, 
+            rgba(59, 130, 246, 0.3) 0%, 
+            rgba(139, 92, 246, 0.25) 40%, 
+            rgba(236, 72, 153, 0.2) 70%, 
+            transparent 100%);
+        top: -20%;
+        right: -10%;
+        animation: floatSlow 30s ease-in-out infinite;
+        filter: blur(80px);
+    }
+
+    .gradient-sphere-2 {
+        position: absolute;
+        width: 70vmax;
+        height: 70vmax;
+        border-radius: 50%;
+        background: radial-gradient(circle at 70% 70%, 
+            rgba(236, 72, 153, 0.3) 0%, 
+            rgba(139, 92, 246, 0.25) 40%, 
+            rgba(59, 130, 246, 0.2) 70%, 
+            transparent 100%);
+        bottom: -20%;
+        left: -10%;
+        animation: floatMedium 25s ease-in-out infinite reverse;
+        filter: blur(80px);
+    }
+
+    .gradient-sphere-3 {
+        position: absolute;
+        width: 60vmax;
+        height: 60vmax;
+        border-radius: 50%;
+        background: radial-gradient(circle, 
+            rgba(59, 130, 246, 0.2) 0%, 
+            rgba(139, 92, 246, 0.15) 30%, 
+            rgba(236, 72, 153, 0.1) 60%, 
+            transparent 100%);
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        animation: pulse 15s ease-in-out infinite;
+        filter: blur(90px);
+    }
+
+    @keyframes floatSlow {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        33% { transform: translate(3%, -3%) scale(1.1); }
+        66% { transform: translate(-2%, 2%) scale(0.95); }
+    }
+
+    @keyframes floatMedium {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        25% { transform: translate(4%, -4%) scale(1.15); }
+        50% { transform: translate(-3%, 3%) scale(0.9); }
+        75% { transform: translate(2%, -2%) scale(1.05); }
+    }
+
+    @keyframes pulse {
+        0%, 100% { 
+            opacity: 0.4;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        50% { 
+            opacity: 0.7;
+            transform: translate(-50%, -50%) scale(1.3);
+        }
+    }
+
+    /* ===== ЦЕНТРАЛЬНЫЙ КОНТЕНТ ===== */
+    .center-content {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+        max-width: 900px;
+        padding: 3rem 4rem;
+        animation: fadeInUp 1.2s ease-out;
+        
+        /* Стеклянный эффект для всего контейнера */
+        background: rgba(10, 10, 10, 0.2);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 60px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.05);
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* ===== ЛОГОТИП С ВОЗМОЖНОСТЬЮ НАЖАТИЯ ===== */
+    .logo-wrapper {
+        margin-bottom: 2rem;
+        position: relative;
+        display: inline-block;
+        cursor: pointer;
+        transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1);
+    }
+
+    .logo-wrapper:active {
+        transform: scale(0.95);
+    }
+
+    .logo-icon {
+        width: 160px;
+        height: 160px;
+        margin: 0 auto;
+        
+        /* Стеклянный эффект для логотипа */
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-radius: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 
+                    0 0 0 2px rgba(139, 92, 246, 0.2),
+                    inset 0 1px 2px rgba(255, 255, 255, 0.1);
+        position: relative;
+        overflow: hidden;
+        animation: floatLogo 7s ease-in-out infinite;
+        transition: all 0.4s ease;
+        pointer-events: none;
+    }
+
+    /* Эффект блика на стекле */
+    .logo-icon::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+        transition: left 0.7s ease;
+    }
+
+    .logo-wrapper:hover .logo-icon::after {
+        left: 100%;
+    }
+
+    .logo-wrapper:hover .logo-icon {
+        transform: scale(1.08);
+        border-color: rgba(139, 92, 246, 0.5);
+        box-shadow: 0 25px 50px rgba(139, 92, 246, 0.3), 
+                    0 0 0 3px rgba(139, 92, 246, 0.3),
+                    inset 0 1px 3px rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    @keyframes floatLogo {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-15px); }
+    }
+
+    .logo-icon::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, 
+            rgba(59, 130, 246, 0.2) 0%, 
+            rgba(139, 92, 246, 0.15) 30%, 
+            rgba(236, 72, 153, 0.1) 60%, 
+            transparent 100%);
+        animation: rotate 20s linear infinite;
+    }
+
+    .logo-icon i {
+        font-size: 5.5rem;
+        background: linear-gradient(135deg, #fff, var(--accent-blue), var(--accent-purple), var(--accent-voice));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        position: relative;
+        z-index: 1;
+        filter: drop-shadow(0 0 25px rgba(139, 92, 246, 0.5));
+        transition: all 0.3s ease;
+    }
+
+    .logo-wrapper:hover .logo-icon i {
+        filter: drop-shadow(0 0 35px rgba(139, 92, 246, 0.8));
+        transform: scale(1.1);
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    /* Эффект пульсации при нажатии */
+    .logo-wrapper.click-effect {
+        animation: logoPulse 0.3s ease-out;
+    }
+
+    @keyframes logoPulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.2); }
+        100% { transform: scale(1); }
+    }
+
+    /* ===== УЛУЧШЕННЫЙ ЗАГОЛОВОК ===== */
+    .title-wrapper {
+        position: relative;
+        margin-bottom: 2.5rem;
+        padding: 1rem 0;
+    }
+
+    .title {
+        font-family: var(--font-display);
+        font-size: 6rem;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        line-height: 1.1;
+        text-transform: uppercase;
+        position: relative;
+        display: inline-block;
+        
+        /* Текст с градиентом */
+        background: linear-gradient(
+            135deg,
+            #ffffff 0%,
+            #f0f0f0 10%,
+            var(--accent-blue) 20%,
+            #a78bfa 30%,
+            var(--accent-purple) 40%,
+            #c084fc 50%,
+            var(--accent-voice) 60%,
+            #f9a8d4 70%,
+            #ffffff 80%
+        );
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        background-size: 300% 300%;
+        animation: titleGradient 8s ease infinite;
+        
+        /* Тень для объема */
+        text-shadow: 0 0 30px rgba(139, 92, 246, 0.3);
+        margin: 0;
+        padding: 0 1rem;
+        
+        /* Стеклянный эффект для текста */
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+    }
+
+    @keyframes titleGradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+
+    /* Эффект свечения за заголовком */
+    .title-glow {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 110%;
+        height: 110%;
+        background: radial-gradient(circle, rgba(139, 92, 246, 0.2) 0%, transparent 70%);
+        filter: blur(50px);
+        z-index: -1;
+        animation: glowPulse 3s ease-in-out infinite;
+    }
+
+    @keyframes glowPulse {
+        0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(1); }
+        50% { opacity: 0.7; transform: translate(-50%, -50%) scale(1.1); }
+    }
+
+    /* Декоративные элементы вокруг заголовка */
+    .title-decoration {
+        position: absolute;
+        font-size: 2rem;
+        color: var(--accent-purple);
+        opacity: 0.4;
+        animation: decorationFloat 4s ease-in-out infinite;
+        text-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+    }
+
+    .title-decoration.left {
+        left: -30px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    .title-decoration.right {
+        right: -30px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    .title-decoration.top {
+        top: -30px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .title-decoration.bottom {
+        bottom: -30px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    @keyframes decorationFloat {
+        0%, 100% { transform: translateY(-50%) scale(1); opacity: 0.4; }
+        50% { transform: translateY(-50%) scale(1.2); opacity: 0.7; color: var(--accent-voice); }
+    }
+
+    /* Тень для заголовка */
+    .title-shadow {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        height: 10px;
+        background: linear-gradient(90deg, transparent, var(--accent-purple), var(--accent-voice), transparent);
+        filter: blur(8px);
+        border-radius: 5px;
+        animation: shadowMove 3s ease-in-out infinite;
+        opacity: 0.5;
+    }
+
+    @keyframes shadowMove {
+        0%, 100% { width: 50%; left: 25%; opacity: 0.4; }
+        50% { width: 80%; left: 10%; opacity: 0.8; }
+    }
+
+    /* ===== ПОДЗАГОЛОВОК - ВЫРОВНЕН ===== */
+    .subtitle-wrapper {
+        position: relative;
+        margin: 2rem 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+    }
+
+    .subtitle {
+        font-family: var(--font-subtitle);
+        font-size: 1.4rem;
+        color: var(--text-secondary);
+        line-height: 1.8;
+        letter-spacing: 0.02em;
+        font-weight: 300;
+        position: relative;
+        padding: 0.7rem 2rem;
+        
+        /* Стеклянный эффект для подзаголовка */
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border-radius: 60px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+        
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        margin: 0 auto;
+        white-space: nowrap;
+        transition: all 0.3s ease;
+    }
+
+    .subtitle:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(139, 92, 246, 0.3);
+        box-shadow: 0 15px 35px -10px rgba(139, 92, 246, 0.3);
+    }
+
+    .subtitle-text {
+        display: inline-block;
+        color: var(--text-secondary);
+    }
+
+    .subtitle::before,
+    .subtitle::after {
+        content: '✦';
+        color: var(--accent-purple);
+        font-size: 1.2rem;
+        opacity: 0.7;
+        display: inline-block;
+        animation: sparkle 2s ease-in-out infinite;
+        filter: drop-shadow(0 0 5px currentColor);
+    }
+
+    .subtitle::after {
+        animation-delay: 1s;
+    }
+
+    @keyframes sparkle {
+        0%, 100% { opacity: 0.4; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.2); color: var(--accent-voice); }
+    }
+
+    /* ===== НАЗВАНИЕ СЕРВЕРА ===== */
+    .server-name {
+        font-family: var(--font-title);
+        display: inline-block;
+        background: linear-gradient(135deg, var(--accent-purple), var(--accent-voice));
+        padding: 0.5rem 2.2rem;
+        border-radius: 60px;
+        color: white;
+        font-weight: 600;
+        font-size: 1.6rem;
+        letter-spacing: 0.05em;
+        margin: 0;
+        
+        /* Стеклянная обертка для названия */
+        box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.4), 
+                    0 0 0 1px rgba(255, 255, 255, 0.2),
+                    inset 0 1px 2px rgba(255, 255, 255, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        position: relative;
+        overflow: hidden;
+        animation: serverGlow 3s ease-in-out infinite;
+        transform: translateY(-2px);
+        vertical-align: middle;
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
+    }
+
+    .server-name::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
+        animation: rotate 15s linear infinite;
+        opacity: 0.3;
+    }
+
+    /* Эффект блика на названии сервера */
+    .server-name::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.5s ease;
+    }
+
+    .server-name:hover::after {
+        left: 100%;
+    }
+
+    @keyframes serverGlow {
+        0%, 100% { 
+            box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.4), 
+                        0 0 0 1px rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        50% { 
+            box-shadow: 0 15px 35px -5px rgba(236, 72, 153, 0.5), 
+                        0 0 0 2px rgba(255, 255, 255, 0.3);
+            transform: translateY(-4px);
+        }
+    }
+
+    /* ===== ДЕКОРАТИВНЫЕ ЭЛЕМЕНТЫ ===== */
+    .decorative-star {
+        position: absolute;
+        color: rgba(255, 255, 255, 0.2);
+        font-size: 2rem;
+        pointer-events: none;
+        animation: floatStar 10s linear infinite;
+        filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.3));
+    }
+
+    @keyframes floatStar {
+        from { transform: rotate(0deg) translateY(0); }
+        to { transform: rotate(360deg) translateY(-20px); }
+    }
+
+    /* Уведомление о звуке */
+    .sound-notification {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        
+        /* Стеклянный эффект для уведомления */
+        background: rgba(139, 92, 246, 0.3);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        color: white;
+        padding: 1rem 2.5rem;
+        border-radius: 60px;
+        font-size: 1rem;
+        font-weight: 500;
+        box-shadow: 0 15px 35px -5px rgba(139, 92, 246, 0.4);
+        z-index: 9999;
+        animation: slideUpFade 0.3s ease-out;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        letter-spacing: 0.5px;
+    }
+
+    .sound-notification i {
+        margin-right: 0.8rem;
+        animation: spin 2s linear infinite;
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    @keyframes slideUpFade {
+        from {
+            opacity: 0;
+            transform: translate(-50%, 20px);
+        }
+        to {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    /* ===== АДАПТИВНОСТЬ ===== */
+    @media (max-width: 1024px) {
+        .title {
+            font-size: 5rem;
+        }
+        
+        .center-content {
+            padding: 2.5rem 3rem;
+            margin: 0 2rem;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .title {
+            font-size: 3.8rem;
+        }
+
+        .logo-icon {
+            width: 140px;
+            height: 140px;
+        }
+
+        .logo-icon i {
+            font-size: 4.5rem;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            padding: 0.6rem 1.5rem;
+            gap: 0.5rem;
+        }
+
+        .server-name {
+            font-size: 1.4rem;
+            padding: 0.4rem 1.8rem;
+        }
+
+        .title-decoration {
+            display: none;
+        }
+        
+        .center-content {
+            padding: 2rem 2rem;
+            border-radius: 40px;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .subtitle {
+            white-space: normal;
+            flex-wrap: wrap;
+            text-align: center;
+            padding: 0.7rem 1.2rem;
+        }
+        
+        .subtitle-text {
+            display: block;
+            width: 100%;
+            margin-bottom: 0.3rem;
+        }
+        
+        .server-name {
+            display: inline-block;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .title {
+            font-size: 2.8rem;
+        }
+
+        .logo-icon {
+            width: 120px;
+            height: 120px;
+        }
+
+        .logo-icon i {
+            font-size: 3.8rem;
+        }
+
+        .subtitle {
+            font-size: 1rem;
+            padding: 0.5rem 1rem;
+        }
+
+        .server-name {
+            font-size: 1.2rem;
+            padding: 0.3rem 1.2rem;
+        }
+
+        .subtitle::before,
+        .subtitle::after {
+            display: none;
+        }
+        
+        .center-content {
+            padding: 1.5rem 1.2rem;
+            border-radius: 30px;
+        }
+    }
+</style>
+
+<!-- Главная страница -->
+<div class="home-page">
+    <!-- Анимированный фон -->
+    <div class="background-animation">
+        <div class="gradient-sphere-1"></div>
+        <div class="gradient-sphere-2"></div>
+        <div class="gradient-sphere-3"></div>
+    </div>
+
+    <!-- Декоративные звездочки -->
+    <div class="decorative-star" style="top: 10%; left: 5%;">✦</div>
+    <div class="decorative-star" style="bottom: 15%; right: 8%;">✧</div>
+    <div class="decorative-star" style="top: 20%; right: 15%;">✦</div>
+    <div class="decorative-star" style="bottom: 25%; left: 12%;">✧</div>
+
+    <!-- Центральный контент -->
+    <div class="center-content">
+        <!-- Логотип с возможностью нажатия -->
+        <div class="logo-wrapper" id="clickableLogo" role="button" tabindex="0" aria-label="Воспроизвести звук">
+            <div class="logo-icon">
+                <i class="fas fa-robot"></i>
+            </div>
+        </div>
+        
+        <div class="title-wrapper">
+            <!-- Декоративные элементы вокруг заголовка -->
+            <div class="title-decoration left">✧</div>
+            <div class="title-decoration right">✧</div>
+            <div class="title-decoration top">✦</div>
+            <div class="title-decoration bottom">✦</div>
+            
+            <!-- Заголовок с эффектами -->
+            <h1 class="title">Bot test</h1>
+            
+            <!-- Эффект свечения -->
+            <div class="title-glow"></div>
+            
+            <!-- Тень под заголовком -->
+            <div class="title-shadow"></div>
+        </div>
+        
+        <div class="subtitle-wrapper">
+            <div class="subtitle">
+                <span class="subtitle-text">разработано специально для</span>
+                <span class="server-name">test</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    'use strict';
+
+    // Создаем аудио контекст и загружаем звуки
+    let audioContext = null;
+    let drumBuffer = null;
+    let kickBuffer = null;
+
+    // Функция для инициализации AudioContext (должна быть вызвана после взаимодействия пользователя)
+    function initAudio() {
+        if (audioContext) return;
+        
+        try {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            console.log('🎵 AudioContext инициализирован');
+            
+            // Создаем звук бочки (синтезированный)
+            createDrumSound();
+            createKickSound();
+        } catch (error) {
+            console.error('❌ Ошибка инициализации AudioContext:', error);
+        }
+    }
+
+    // Создаем звук бочки (низкий удар)
+    function createDrumSound() {
+        if (!audioContext) return;
+        
+        const duration = 0.5;
+        const sampleRate = audioContext.sampleRate;
+        const length = sampleRate * duration;
+        const buffer = audioContext.createBuffer(1, length, sampleRate);
+        const data = buffer.getChannelData(0);
+        
+        for (let i = 0; i < length; i++) {
+            const t = i / sampleRate;
+            // Низкочастотный удар с затуханием
+            data[i] = Math.sin(2 * Math.PI * 60 * t) * Math.exp(-5 * t) * 0.5; // Основной тон
+            data[i] += Math.sin(2 * Math.PI * 120 * t) * Math.exp(-8 * t) * 0.3; // Гармоника
+            // Добавляем шум для атаки
+            if (t < 0.05) {
+                data[i] += (Math.random() * 2 - 1) * Math.exp(-20 * t) * 0.3;
+            }
+        }
+        
+        drumBuffer = buffer;
+        console.log('🥁 Звук бочки создан');
+    }
+
+    // Создаем звук барабана (средний удар)
+    function createKickSound() {
+        if (!audioContext) return;
+        
+        const duration = 0.3;
+        const sampleRate = audioContext.sampleRate;
+        const length = sampleRate * duration;
+        const buffer = audioContext.createBuffer(1, length, sampleRate);
+        const data = buffer.getChannelData(0);
+        
+        for (let i = 0; i < length; i++) {
+            const t = i / sampleRate;
+            // Более высокий тон для барабана
+            data[i] = Math.sin(2 * Math.PI * 80 * t) * Math.exp(-8 * t) * 0.5;
+            data[i] += Math.sin(2 * Math.PI * 160 * t) * Math.exp(-12 * t) * 0.3;
+            // Добавляем шум
+            if (t < 0.03) {
+                data[i] += (Math.random() * 2 - 1) * Math.exp(-30 * t) * 0.2;
+            }
+        }
+        
+        kickBuffer = buffer;
+        console.log('🥁 Звук барабана создан');
+    }
+
+    // Функция воспроизведения звука
+    function playSound(type = 'drum') {
+        if (!audioContext) {
+            initAudio();
+            if (!audioContext) return;
+        }
+        
+        if (audioContext.state === 'suspended') {
+            audioContext.resume().then(() => {
+                playSound(type);
+            });
+            return;
+        }
+        
+        const buffer = type === 'drum' ? drumBuffer : kickBuffer;
+        if (!buffer) {
+            console.log('⚠️ Звук еще не создан');
+            return;
+        }
+        
+        try {
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+            
+            // Добавляем небольшое искажение для более жирного звука
+            const distortion = audioContext.createWaveShaper();
+            const gainNode = audioContext.createGain();
+            
+            source.connect(distortion);
+            distortion.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            gainNode.gain.value = 0.5; // Громкость
+            
+            source.start();
+            
+            // Добавляем визуальный эффект
+            const logo = document.querySelector('.logo-wrapper');
+            logo.classList.add('click-effect');
+            setTimeout(() => {
+                logo.classList.remove('click-effect');
+            }, 300);
+            
+            // Показываем уведомление
+            showSoundNotification();
+            
+        } catch (error) {
+            console.error('❌ Ошибка воспроизведения звука:', error);
+        }
+    }
+
+    // Показываем уведомление о звуке
+    function showSoundNotification() {
+        const notification = document.createElement('div');
+        notification.className = 'sound-notification';
+        notification.innerHTML = '<i class="fas fa-music"></i> Бум! 🥁';
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 1500);
+    }
+
+    // Обработчик клика по логотипу
+    document.getElementById('clickableLogo').addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        // Инициализируем аудио при первом клике
+        initAudio();
+        
+        // Воспроизводим случайный звук (бочка или барабан)
+        const randomSound = Math.random() > 0.5 ? 'drum' : 'kick';
+        playSound(randomSound);
+    });
+
+    // Добавляем обработчик для клавиши Enter, чтобы сделать элемент доступным с клавиатуры
+    document.getElementById('clickableLogo').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault(); // Предотвращаем прокрутку страницы при пробеле
+            this.click(); // Вызываем существующий обработчик клика
+        }
+    });
+
+    // Эффект параллакса для фона
+    document.addEventListener('mousemove', (e) => {
+        const spheres = document.querySelectorAll('.gradient-sphere-1, .gradient-sphere-2, .gradient-sphere-3');
+        const mouseX = e.clientX / window.innerWidth;
+        const mouseY = e.clientY / window.innerHeight;
+
+        spheres.forEach((sphere, index) => {
+            const speed = 15 + (index * 5);
+            const x = (mouseX - 0.5) * speed;
+            const y = (mouseY - 0.5) * speed;
+            sphere.style.transform = `translate(${x}px, ${y}px)`;
+        });
+    });
+
+    // Динамическое изменение градиента заголовка при движении мыши
+    document.addEventListener('mousemove', (e) => {
+        const title = document.querySelector('.title');
+        if (!title) return;
+        
+        const mouseX = e.clientX / window.innerWidth;
+        const mouseY = e.clientY / window.innerHeight;
+        
+        const xPos = mouseX * 100;
+        const yPos = mouseY * 100;
+        
+        title.style.backgroundPosition = `${xPos}% ${yPos}%`;
+    });
+
+    // Прелоад аудио при наведении мыши (для быстрого старта)
+    document.addEventListener('mouseover', function once() {
+        initAudio();
+        document.removeEventListener('mouseover', once);
+    }, { once: true });
+
+})();
+</script>

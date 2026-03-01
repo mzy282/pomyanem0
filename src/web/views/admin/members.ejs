@@ -1,0 +1,2678 @@
+<% 
+title = 'Члены семьи';
+%>
+
+<%- include('../layouts/main') %>
+
+<!-- Подключаем Socket.IO -->
+<script src="/socket.io/socket.io.js"></script>
+
+<style>
+    /* ===== ОСНОВНЫЕ ПЕРЕМЕННЫЕ ===== */
+    :root {
+        --bg-primary: #0A0A0A;
+        --bg-secondary: #111111;
+        --bg-card: rgba(26, 26, 26, 0.6);
+        --bg-card-hover: rgba(34, 34, 34, 0.8);
+        --border-color: rgba(255, 255, 255, 0.05);
+        --border-color-hover: rgba(139, 92, 246, 0.2);
+        --text-primary: #FFFFFF;
+        --text-secondary: rgba(255, 255, 255, 0.7);
+        --text-muted: rgba(255, 255, 255, 0.4);
+        --accent-blue: #3B82F6;
+        --accent-green: #10B981;
+        --accent-yellow: #F59E0B;
+        --accent-red: #EF4444;
+        --accent-purple: #8B5CF6;
+        --accent-voice: #EC4899;
+        --accent-orange: #F97316;
+        --accent-archive: #6B7280;
+        --gradient-blue: linear-gradient(135deg, #3B82F6, #8B5CF6);
+        --gradient-green: linear-gradient(135deg, #10B981, #3B82F6);
+        --gradient-yellow: linear-gradient(135deg, #F59E0B, #EC4899);
+        --gradient-red: linear-gradient(135deg, #EF4444, #EC4899);
+        --gradient-orange: linear-gradient(135deg, #F97316, #EC4899);
+        --gradient-purple: linear-gradient(135deg, #8B5CF6, #EC4899);
+        --gradient-archive: linear-gradient(135deg, #6B7280, #4B5563);
+        --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        --shadow-lg: 0 15px 40px rgba(0, 0, 0, 0.5);
+        --glass-bg: rgba(20, 20, 30, 0.4);
+        --glass-border: 1px solid rgba(255, 255, 255, 0.03);
+        --glass-border-hover: 1px solid rgba(139, 92, 246, 0.2);
+        --glass-blur: blur(15px);
+        --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+
+    /* Tier цвета */
+    .tier-1 {
+        background: linear-gradient(135deg, #F59E0B, #EC4899);
+        color: white;
+        border: 1px solid rgba(245, 158, 11, 0.5);
+        box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
+    }
+
+    .tier-2 {
+        background: linear-gradient(135deg, #8B5CF6, #3B82F6);
+        color: white;
+        border: 1px solid rgba(139, 92, 246, 0.5);
+        box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
+    }
+
+    .tier-3 {
+        background: linear-gradient(135deg, #10B981, #3B82F6);
+        color: white;
+        border: 1px solid rgba(16, 185, 129, 0.5);
+        box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+    }
+
+    /* ===== АНИМИРОВАННЫЙ ФОН ===== */
+    .background-animation {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 0;
+        overflow: hidden;
+        pointer-events: none;
+    }
+
+    .gradient-sphere-1 {
+        position: absolute;
+        width: 80vmax;
+        height: 80vmax;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, 
+            rgba(16, 185, 129, 0.2) 0%, 
+            rgba(59, 130, 246, 0.15) 40%, 
+            rgba(139, 92, 246, 0.1) 70%, 
+            transparent 100%);
+        top: -20%;
+        right: -10%;
+        animation: floatSlow 30s ease-in-out infinite;
+        filter: blur(60px);
+    }
+
+    .gradient-sphere-2 {
+        position: absolute;
+        width: 70vmax;
+        height: 70vmax;
+        border-radius: 50%;
+        background: radial-gradient(circle at 70% 70%, 
+            rgba(139, 92, 246, 0.2) 0%, 
+            rgba(59, 130, 246, 0.15) 40%, 
+            rgba(16, 185, 129, 0.1) 70%, 
+            transparent 100%);
+        bottom: -20%;
+        left: -10%;
+        animation: floatMedium 25s ease-in-out infinite reverse;
+        filter: blur(60px);
+    }
+
+    .gradient-sphere-3 {
+        position: absolute;
+        width: 60vmax;
+        height: 60vmax;
+        border-radius: 50%;
+        background: radial-gradient(circle, 
+            rgba(16, 185, 129, 0.15) 0%, 
+            rgba(59, 130, 246, 0.1) 30%, 
+            rgba(139, 92, 246, 0.05) 60%, 
+            transparent 100%);
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        animation: pulse 15s ease-in-out infinite;
+        filter: blur(70px);
+    }
+
+    @keyframes floatSlow {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        33% { transform: translate(3%, -3%) scale(1.1); }
+        66% { transform: translate(-2%, 2%) scale(0.95); }
+    }
+
+    @keyframes floatMedium {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        25% { transform: translate(4%, -4%) scale(1.15); }
+        50% { transform: translate(-3%, 3%) scale(0.9); }
+        75% { transform: translate(2%, -2%) scale(1.05); }
+    }
+
+    @keyframes pulse {
+        0%, 100% { 
+            opacity: 0.3;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        50% { 
+            opacity: 0.6;
+            transform: translate(-50%, -50%) scale(1.3);
+        }
+    }
+
+    /* Декоративные звездочки */
+    .decorative-star {
+        position: fixed;
+        color: rgba(255, 255, 255, 0.15);
+        font-size: 2rem;
+        pointer-events: none;
+        animation: floatStar 10s linear infinite;
+        z-index: 0;
+    }
+
+    @keyframes floatStar {
+        from { transform: rotate(0deg) translateY(0); }
+        to { transform: rotate(360deg) translateY(-20px); }
+    }
+
+    /* ===== ОСНОВНОЙ КОНТЕЙНЕР ===== */
+    .members-content {
+        width: 100%;
+        max-width: 1400px;
+        margin: 2rem auto 0;
+        padding: 100px 0 2rem;
+        animation: fadeIn 0.6s ease-out;
+        position: relative;
+        z-index: 1;
+    }
+
+    @keyframes fadeIn {
+        from { 
+            opacity: 0; 
+            transform: translateY(20px); 
+        }
+        to { 
+            opacity: 1; 
+            transform: translateY(0); 
+        }
+    }
+
+    /* ===== ВЕРХНЯЯ ПАНЕЛЬ ===== */
+    .top-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+        padding: 1rem 1.5rem;
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+        border-radius: 24px;
+        box-shadow: var(--shadow);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .top-bar::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, transparent 70%);
+        animation: rotate 30s linear infinite;
+        pointer-events: none;
+    }
+
+    .top-bar::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, var(--accent-green), var(--accent-blue), transparent);
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .title-section {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .title-section i {
+        font-size: 1.6rem;
+        color: var(--accent-green);
+        filter: drop-shadow(0 0 20px rgba(16, 185, 129, 0.5));
+        animation: floatIcon 3s ease-in-out infinite;
+    }
+
+    @keyframes floatIcon {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        50% { transform: translateY(-5px) rotate(5deg); }
+    }
+
+    .title-section h1 {
+        font-size: 1.6rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #fff, var(--accent-green), var(--accent-blue));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        margin: 0;
+        letter-spacing: -0.5px;
+    }
+
+    .refresh-button {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.6rem 1.2rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: var(--glass-border);
+        border-radius: 40px;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        backdrop-filter: var(--glass-blur);
+        font-size: 0.9rem;
+    }
+
+    .refresh-button:hover {
+        background: rgba(16, 185, 129, 0.1);
+        border-color: var(--accent-green);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .refresh-button i {
+        transition: transform 0.5s ease;
+    }
+
+    .refresh-button:hover i {
+        transform: rotate(180deg);
+    }
+
+    .search-button {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.6rem 1.2rem;
+        background: rgba(139, 92, 246, 0.15);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: 40px;
+        color: var(--accent-purple);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        backdrop-filter: var(--glass-blur);
+        margin-left: 1rem;
+        font-size: 0.9rem;
+    }
+
+    .search-button:hover {
+        background: rgba(139, 92, 246, 0.25);
+        border-color: var(--accent-purple);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
+    }
+
+    .action-buttons-group {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .total-stats {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .total-stat-item {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.4rem 1.2rem;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 40px;
+        border: var(--glass-border);
+        backdrop-filter: var(--glass-blur);
+    }
+
+    .total-stat-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+    }
+
+    .total-stat-icon.total {
+        background: rgba(16, 185, 129, 0.15);
+        color: var(--accent-green);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .total-stat-icon.new {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--accent-yellow);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .total-stat-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .total-stat-label {
+        color: var(--text-secondary);
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .total-stat-number {
+        font-size: 1.2rem;
+        font-weight: 800;
+        line-height: 1;
+        background: linear-gradient(135deg, #fff, #e0e0e0);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        letter-spacing: -1px;
+    }
+
+    .filters-section {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .filter-button {
+        padding: 0.5rem 1.2rem;
+        border-radius: 40px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: var(--glass-border);
+        background: rgba(20, 20, 30, 0.2);
+        backdrop-filter: var(--glass-blur);
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .filter-button:hover {
+        background: rgba(16, 185, 129, 0.25);
+        border-color: var(--accent-green);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .filter-button.active {
+        background: var(--gradient-green);
+        color: white;
+        border-color: transparent;
+        box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4);
+    }
+
+    .filter-button .count {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 0.15rem 0.5rem;
+        border-radius: 30px;
+        font-size: 0.7rem;
+        margin-left: 0.2rem;
+    }
+
+    .search-box {
+        flex: 1;
+        min-width: 250px;
+        position: relative;
+        margin-left: auto;
+    }
+
+    .search-box i {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        z-index: 2;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 0.6rem 1rem 0.6rem 2.8rem;
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+        border-radius: 40px;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: var(--accent-purple);
+        box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15);
+        background: rgba(20, 20, 30, 0.6);
+    }
+
+    .clear-search {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+        cursor: pointer;
+        font-size: 0.9rem;
+        z-index: 2;
+        transition: color 0.2s ease;
+    }
+
+    .clear-search:hover {
+        color: var(--accent-red);
+    }
+
+    .members-table-container {
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+        border-radius: 24px;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+        margin-bottom: 2rem;
+    }
+
+    .members-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+    }
+
+    .members-table th {
+        text-align: left;
+        padding: 0.8rem 1rem;
+        background: rgba(0, 0, 0, 0.3);
+        color: var(--text-secondary);
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .members-table td {
+        padding: 0.8rem 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        color: var(--text-primary);
+        vertical-align: middle;
+    }
+
+    .members-table tbody tr:hover {
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .table-user {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+
+    .table-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        border: 2px solid var(--accent-green);
+        object-fit: cover;
+    }
+
+    .table-user-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+    }
+
+    .table-realname {
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .table-realname i {
+        color: var(--accent-green);
+        font-size: 0.7rem;
+    }
+
+    .table-discord {
+        font-size: 0.7rem;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .table-discord i {
+        color: var(--accent-blue);
+        font-size: 0.6rem;
+    }
+
+    .table-user-id {
+        font-size: 0.6rem;
+        color: var(--text-muted);
+        font-family: monospace;
+    }
+
+    .table-tier {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        font-weight: 700;
+        font-size: 0.9rem;
+        margin-right: 0.3rem;
+    }
+
+    .table-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.25rem 0.8rem;
+        border-radius: 40px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        backdrop-filter: var(--glass-blur);
+        white-space: nowrap;
+    }
+
+    .table-badge.new {
+        background: rgba(16, 185, 129, 0.15);
+        color: var(--accent-green);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .table-details {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+    }
+
+    .table-detail-item {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: var(--text-secondary);
+        font-size: 0.75rem;
+    }
+
+    .table-detail-item i {
+        color: var(--accent-green);
+        font-size: 0.7rem;
+        width: 14px;
+    }
+
+    .table-detail-item span {
+        color: var(--text-primary);
+        font-weight: 500;
+        font-size: 0.75rem;
+    }
+
+    .table-date {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: var(--text-secondary);
+        font-size: 0.7rem;
+    }
+
+    .table-date i {
+        color: var(--accent-green);
+        font-size: 0.7rem;
+    }
+
+    .table-actions {
+        display: flex;
+        gap: 0.2rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .table-action-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+        backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+    }
+
+    .table-action-btn:hover {
+        transform: translateY(-2px);
+    }
+
+    .table-action-btn.view {
+        color: var(--accent-blue);
+    }
+
+    .table-action-btn.view:hover {
+        background: rgba(59, 130, 246, 0.2);
+        color: white;
+        border-color: var(--accent-blue);
+    }
+
+    .table-action-btn.exclude {
+        color: var(--accent-red);
+    }
+
+    .table-action-btn.exclude:hover {
+        background: rgba(239, 68, 68, 0.2);
+        color: white;
+        border-color: var(--accent-red);
+    }
+
+    /* Индикатор заметки */
+    .note-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background-color: var(--accent-red);
+        box-shadow: 0 0 10px var(--accent-red);
+        animation: pulse-red 2s infinite;
+        margin-left: 0.3rem;
+        display: inline-block;
+    }
+
+    @keyframes pulse-red {
+        0% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+        }
+        70% {
+            box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+        }
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: var(--glass-blur);
+        border-radius: 24px;
+        border: 1px dashed rgba(255, 255, 255, 0.1);
+    }
+
+    .empty-icon {
+        font-size: 4rem;
+        color: var(--text-muted);
+        margin-bottom: 1rem;
+        animation: floatIcon 4s ease-in-out infinite;
+    }
+
+    .empty-title {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-text {
+        color: var(--text-secondary);
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .loading-skeleton {
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    /* ===== МОДАЛЬНЫЕ ОКНА ===== */
+    .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: var(--glass-blur);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.4s ease;
+    }
+
+    .modal.show {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .modal-content {
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+        border-radius: 30px;
+        padding: 2rem;
+        max-width: 550px;
+        width: 90%;
+        max-height: 85vh;
+        overflow-y: auto;
+        position: relative;
+        transform: translateY(-30px) scale(0.95);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .modal.show .modal-content {
+        transform: translateY(0) scale(1);
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: var(--glass-border);
+    }
+
+    .modal-header h3 {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .modal-close {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: var(--glass-border);
+        background: rgba(255, 255, 255, 0.02);
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-close:hover {
+        background: rgba(239, 68, 68, 0.15);
+        color: #EF4444;
+        transform: rotate(90deg);
+    }
+
+    .modal-input, .modal-select {
+        width: 100%;
+        padding: 0.8rem 1.2rem;
+        background: rgba(0, 0, 0, 0.3);
+        backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+        border-radius: 40px;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        margin-bottom: 1rem;
+        appearance: none;
+        cursor: pointer;
+    }
+
+    .modal-select {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 1.2rem center;
+        background-size: 14px;
+    }
+
+    .modal-textarea {
+        width: 100%;
+        padding: 0.8rem 1.2rem;
+        background: rgba(0, 0, 0, 0.3);
+        backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+        border-radius: 20px;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        margin-bottom: 1rem;
+        min-height: 120px;
+        resize: vertical;
+        font-family: inherit;
+        line-height: 1.5;
+    }
+
+    .modal-textarea:focus {
+        outline: none;
+        border-color: var(--accent-purple);
+        box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15);
+    }
+
+    .modal-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        margin-bottom: 1.5rem;
+        padding: 0.5rem 1rem;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 40px;
+        border: var(--glass-border);
+        cursor: pointer;
+    }
+
+    .modal-checkbox input {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: var(--accent-red);
+    }
+
+    .modal-footer {
+        display: flex;
+        gap: 0.8rem;
+        justify-content: flex-end;
+        margin-top: 1.5rem;
+    }
+
+    .modal-button {
+        padding: 0.7rem 1.5rem;
+        border-radius: 40px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+        backdrop-filter: var(--glass-blur);
+    }
+
+    .modal-button.cancel {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-secondary);
+        border: var(--glass-border);
+    }
+
+    .modal-button.cancel:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .modal-button.exclude {
+        background: var(--gradient-red);
+        color: white;
+        box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+    }
+
+    .modal-button.exclude:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 25px rgba(239, 68, 68, 0.5);
+    }
+
+    .modal-button.save {
+        background: var(--gradient-green);
+        color: white;
+        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+    }
+
+    .modal-button.save:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 25px rgba(16, 185, 129, 0.5);
+    }
+
+    .modal-button.tier {
+        background: var(--gradient-purple);
+        color: white;
+        box-shadow: 0 8px 20px rgba(139, 92, 246, 0.3);
+    }
+
+    .modal-button.tier:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 25px rgba(139, 92, 246, 0.5);
+    }
+
+    .modal-button.delete {
+        background: var(--gradient-red);
+        color: white;
+        box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+    }
+
+    .modal-button.delete:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 25px rgba(239, 68, 68, 0.5);
+    }
+
+    .modal-profile {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        background: rgba(0, 0, 0, 0.2);
+        backdrop-filter: var(--glass-blur);
+        border-radius: 24px;
+    }
+
+    .modal-avatar {
+        width: 70px;
+        height: 70px;
+        border-radius: 20px;
+        border: 3px solid var(--accent-green);
+        object-fit: cover;
+    }
+
+    .modal-username {
+        font-size: 1.3rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        margin-bottom: 0.3rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .modal-tier-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        font-weight: 700;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+
+    .modal-tier-badge:hover {
+        transform: scale(1.1);
+    }
+
+    .modal-discord {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .modal-discord i {
+        color: var(--accent-blue);
+        font-size: 1rem;
+    }
+
+    .modal-user-id {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        font-family: monospace;
+        margin-top: 0.3rem;
+        padding: 0.15rem 0.6rem;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 30px;
+        display: inline-block;
+    }
+
+    .modal-review-info {
+        background: rgba(139, 92, 246, 0.1);
+        border-left: 3px solid var(--accent-purple);
+        border-radius: 12px;
+        padding: 0.8rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        font-size: 0.85rem;
+    }
+
+    .modal-review-info i {
+        color: var(--accent-purple);
+        font-size: 1rem;
+    }
+
+    .modal-review-info .reviewer-name {
+        color: var(--accent-purple);
+        font-weight: 600;
+    }
+
+    .modal-review-info .review-date {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+    }
+
+    .modal-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.8rem;
+        margin-bottom: 1rem;
+    }
+
+    .modal-field {
+        background: rgba(0, 0, 0, 0.2);
+        backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+        border-radius: 16px;
+        padding: 0.8rem;
+    }
+
+    .modal-field.full-width {
+        grid-column: span 2;
+    }
+
+    .modal-field-label {
+        color: var(--text-muted);
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.3rem;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        justify-content: space-between;
+    }
+
+    .modal-field-label i {
+        color: var(--accent-green);
+        font-size: 0.7rem;
+    }
+
+    .modal-field-value {
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        font-weight: 600;
+        line-height: 1.4;
+        word-wrap: break-word;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .modal-field-value.editable {
+        cursor: pointer;
+        transition: all 0.2s ease;
+        padding: 0.2rem 0.5rem;
+        border-radius: 8px;
+    }
+
+    .modal-field-value.editable:hover {
+        background: rgba(139, 92, 246, 0.15);
+    }
+
+    .modal-field-value.editable i {
+        color: var(--accent-yellow);
+        font-size: 0.8rem;
+        opacity: 0.5;
+        transition: opacity 0.2s ease;
+    }
+
+    .modal-field-value.editable:hover i {
+        opacity: 1;
+        color: var(--accent-green);
+    }
+
+    .notes-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    .clear-notes-btn {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--accent-red);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 20px;
+        padding: 0.2rem 0.8rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        margin-left: auto;
+    }
+
+    .clear-notes-btn:hover {
+        background: rgba(239, 68, 68, 0.2);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+    }
+
+    .clear-notes-btn i {
+        font-size: 0.7rem;
+    }
+
+    .tier-selector {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .tier-option {
+        flex: 1;
+        padding: 0.5rem;
+        border-radius: 40px;
+        text-align: center;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid transparent;
+    }
+
+    .tier-option.tier-1 {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--accent-yellow);
+        border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    .tier-option.tier-1:hover, .tier-option.tier-1.selected {
+        background: var(--gradient-yellow);
+        color: white;
+        border-color: transparent;
+        box-shadow: 0 5px 15px rgba(245, 158, 11, 0.4);
+    }
+
+    .tier-option.tier-2 {
+        background: rgba(139, 92, 246, 0.1);
+        color: var(--accent-purple);
+        border-color: rgba(139, 92, 246, 0.3);
+    }
+
+    .tier-option.tier-2:hover, .tier-option.tier-2.selected {
+        background: var(--gradient-purple);
+        color: white;
+        border-color: transparent;
+        box-shadow: 0 5px 15px rgba(139, 92, 246, 0.4);
+    }
+
+    .tier-option.tier-3 {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--accent-green);
+        border-color: rgba(16, 185, 129, 0.3);
+    }
+
+    .tier-option.tier-3:hover, .tier-option.tier-3.selected {
+        background: var(--gradient-green);
+        color: white;
+        border-color: transparent;
+        box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
+    }
+
+    .notification {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: var(--glass-blur);
+        border-left: 4px solid var(--accent-green);
+        border-radius: 20px;
+        padding: 0.8rem 1.5rem;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        box-shadow: var(--shadow-lg);
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        z-index: 9999;
+        animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .notification i {
+        color: var(--accent-green);
+        font-size: 1.1rem;
+    }
+
+    .notification.error {
+        border-left-color: var(--accent-red);
+        border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .notification.error i {
+        color: var(--accent-red);
+    }
+
+    @keyframes slideUp {
+        from {
+            transform: translateY(30px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideDown {
+        from {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateY(30px);
+            opacity: 0;
+        }
+    }
+
+    .notes-content {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 0.5rem;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 12px;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        margin-top: 0.5rem;
+    }
+
+    @media (max-width: 1200px) {
+        .members-table-container {
+            overflow-x: auto;
+        }
+        
+        .members-table {
+            min-width: 900px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .members-content {
+            padding: 80px 1rem 1rem;
+        }
+
+        .top-bar {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .action-buttons-group {
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .search-button, .refresh-button {
+            width: 100%;
+            justify-content: center;
+            margin-left: 0;
+        }
+
+        .total-stats {
+            width: 100%;
+            flex-wrap: wrap;
+        }
+
+        .total-stat-item {
+            flex: 1;
+        }
+
+        .filters-section {
+            flex-wrap: wrap;
+        }
+
+        .filter-button {
+            flex: 1;
+            justify-content: center;
+            padding: 0.5rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        .search-box {
+            width: 100%;
+            margin-left: 0;
+        }
+
+        .modal-profile {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .modal-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .modal-field.full-width {
+            grid-column: span 1;
+        }
+    }
+</style>
+
+<!-- Анимированный фон -->
+<div class="background-animation">
+    <div class="gradient-sphere-1"></div>
+    <div class="gradient-sphere-2"></div>
+    <div class="gradient-sphere-3"></div>
+</div>
+
+<!-- Декоративные звездочки -->
+<div class="decorative-star" style="top: 10%; left: 5%;">✦</div>
+<div class="decorative-star" style="bottom: 15%; right: 8%;">✧</div>
+<div class="decorative-star" style="top: 20%; right: 15%;">✦</div>
+<div class="decorative-star" style="bottom: 25%; left: 12%;">✧</div>
+
+<!-- Эффект параллакса для фона -->
+<script>
+(function() {
+    document.addEventListener('mousemove', (e) => {
+        const spheres = document.querySelectorAll('.gradient-sphere-1, .gradient-sphere-2, .gradient-sphere-3');
+        const mouseX = e.clientX / window.innerWidth;
+        const mouseY = e.clientY / window.innerHeight;
+
+        spheres.forEach((sphere, index) => {
+            const speed = 15 + (index * 5);
+            const x = (mouseX - 0.5) * speed;
+            const y = (mouseY - 0.5) * speed;
+            sphere.style.transform = `translate(${x}px, ${y}px)`;
+        });
+    });
+})();
+</script>
+
+<!-- Основной контент -->
+<div class="members-content">
+    <!-- Верхняя панель -->
+    <div class="top-bar">
+        <div class="title-section">
+            <i class="fas fa-users"></i>
+            <h1>Члены семьи</h1>
+        </div>
+        
+        <div class="action-buttons-group">
+            <button class="search-button" onclick="document.getElementById('searchInput').focus()" id="searchBtn">
+                <i class="fas fa-search"></i>
+                <span>Поиск</span>
+            </button>
+            
+            <div class="total-stats">
+                <button class="refresh-button" onclick="loadMembers(true)" id="refreshBtn">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>Обновить</span>
+                </button>
+                <div class="total-stat-item">
+                    <div class="total-stat-icon total">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="total-stat-info">
+                        <span class="total-stat-label">Всего</span>
+                        <span class="total-stat-number" id="totalMembers">0</span>
+                    </div>
+                </div>
+                <div class="total-stat-item">
+                    <div class="total-stat-icon new">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <div class="total-stat-info">
+                        <span class="total-stat-label">Новые</span>
+                        <span class="total-stat-number" id="newMembers">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Фильтры и поиск -->
+    <div class="filters-section">
+        <button class="filter-button active" onclick="filterMembers('all')" id="filterAll">
+            <i class="fas fa-list"></i>
+            Все
+            <span class="count" id="allCount">0</span>
+        </button>
+        <button class="filter-button" onclick="filterMembers('new')" id="filterNew">
+            <i class="fas fa-star"></i>
+            Новые
+            <span class="count" id="newCount">0</span>
+        </button>
+        
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" class="search-input" id="searchInput" placeholder="Поиск по имени, нику, static или ID..." oninput="searchMembers()">
+            <span class="clear-search" onclick="clearSearch()" id="clearSearchBtn" style="display: none;">✕</span>
+        </div>
+    </div>
+
+    <!-- Контейнер для таблицы -->
+    <div id="membersTableContainer">
+        <!-- Таблица будет загружаться сюда -->
+    </div>
+</div>
+
+<!-- Модальное окно исключения -->
+<div class="modal" id="excludeModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>
+                <i class="fas fa-user-minus" style="color: #EF4444;"></i>
+                Исключить из семьи
+            </h3>
+            <button class="modal-close" onclick="hideExcludeModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p>Вы исключаете <strong id="excludeMemberName"></strong> из семьи</p>
+            
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <div class="form-label" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; color: var(--text-secondary);">
+                    <i class="fas fa-pen" style="color: var(--accent-red);"></i>
+                    <span>Причина исключения</span>
+                </div>
+                <textarea class="modal-textarea" id="excludeReason" placeholder="Укажите причину исключения..."></textarea>
+            </div>
+            
+            <div class="modal-checkbox">
+                <input type="checkbox" id="excludeBlacklist">
+                <span>
+                    <i class="fas fa-ban" style="color: var(--accent-red); margin-right: 0.3rem;"></i>
+                    Добавить в черный список (запретить повторные заявки)
+                </span>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-button cancel" onclick="hideExcludeModal()">Отмена</button>
+            <button class="modal-button exclude" onclick="confirmExclude()">Исключить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно изменения Tier -->
+<div class="modal" id="tierModal">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3>
+                <i class="fas fa-layer-group" style="color: #8B5CF6;"></i>
+                Изменить Tier
+            </h3>
+            <button class="modal-close" onclick="hideTierModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p>Выберите Tier для <strong id="tierMemberName"></strong></p>
+            
+            <div class="tier-selector" id="tierSelector">
+                <div class="tier-option tier-1" onclick="selectTier(1)" id="tierOption1">
+                    <i class="fas fa-crown"></i> Tier 1
+                </div>
+                <div class="tier-option tier-2" onclick="selectTier(2)" id="tierOption2">
+                    <i class="fas fa-star"></i> Tier 2
+                </div>
+                <div class="tier-option tier-3" onclick="selectTier(3)" id="tierOption3">
+                    <i class="fas fa-user"></i> Tier 3
+                </div>
+            </div>
+            
+            <div style="margin-top: 1rem; padding: 0.5rem; background: rgba(0,0,0,0.2); border-radius: 12px; text-align: center;">
+                <span id="selectedTierDisplay">Tier 3</span>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-button cancel" onclick="hideTierModal()">Отмена</button>
+            <button class="modal-button tier" onclick="confirmTierChange()">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно редактирования ника/статика -->
+<div class="modal" id="editNickStaticModal">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3>
+                <i class="fas fa-edit" style="color: #10B981;"></i>
+                Редактировать Nick / Static
+            </h3>
+            <button class="modal-close" onclick="hideEditNickStaticModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p>Редактирование для <strong id="editNickStaticUserName"></strong></p>
+            
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <div class="form-label" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; color: var(--text-secondary);">
+                    <i class="fas fa-tag" style="color: var(--accent-purple);"></i>
+                    <span>Nick</span>
+                </div>
+                <input type="text" class="modal-input" id="editNickInput" placeholder="Введите nick..." value="">
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <div class="form-label" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; color: var(--text-secondary);">
+                    <i class="fas fa-hashtag" style="color: var(--accent-yellow);"></i>
+                    <span>Static</span>
+                </div>
+                <input type="text" class="modal-input" id="editStaticInput" placeholder="Введите static..." value="">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-button cancel" onclick="hideEditNickStaticModal()">Отмена</button>
+            <button class="modal-button save" onclick="confirmEditNickStatic()">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно редактирования реального имени и возраста -->
+<div class="modal" id="editRealNameModal">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3>
+                <i class="fas fa-user-edit" style="color: #10B981;"></i>
+                Редактировать профиль
+            </h3>
+            <button class="modal-close" onclick="hideEditRealNameModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p>Редактирование для <strong id="editRealNameUserName"></strong></p>
+            
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <div class="form-label" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; color: var(--text-secondary);">
+                    <i class="fas fa-user" style="color: var(--accent-green);"></i>
+                    <span>Отображаемое имя</span>
+                </div>
+                <input type="text" class="modal-input" id="editRealNameInput" placeholder="Введите имя..." value="">
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <div class="form-label" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; color: var(--text-secondary);">
+                    <i class="fas fa-birthday-cake" style="color: var(--accent-yellow);"></i>
+                    <span>Возраст / Дата рождения</span>
+                </div>
+                <input type="text" class="modal-input" id="editBirthdayInput" placeholder="Например: 25 лет или 15.05.1990" value="">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-button cancel" onclick="hideEditRealNameModal()">Отмена</button>
+            <button class="modal-button save" onclick="confirmEditRealName()">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно редактирования заметок -->
+<div class="modal" id="editNotesModal">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3>
+                <i class="fas fa-sticky-note" style="color: #F59E0B;"></i>
+                Заметки
+            </h3>
+            <button class="modal-close" onclick="hideEditNotesModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p>Заметки для <strong id="editNotesUserName"></strong></p>
+            
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <div class="form-label" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; color: var(--text-secondary);">
+                    <i class="fas fa-pen" style="color: var(--accent-yellow);"></i>
+                    <span>Текст заметки</span>
+                </div>
+                <textarea class="modal-textarea" id="editNotesText" placeholder="Введите заметку..." rows="6"></textarea>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <button class="clear-notes-btn" onclick="clearNotes()">
+                    <i class="fas fa-trash"></i> Очистить заметку
+                </button>
+                
+                <div style="background: rgba(245, 158, 11, 0.1); border-radius: 12px; padding: 0.5rem 1rem; border-left: 3px solid var(--accent-yellow);">
+                    <p style="color: var(--text-secondary); margin: 0; font-size: 0.8rem;">
+                        <i class="fas fa-info-circle" style="color: var(--accent-yellow); margin-right: 0.5rem;"></i>
+                        Заметки видны только администраторам
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-button cancel" onclick="hideEditNotesModal()">Отмена</button>
+            <button class="modal-button save" onclick="confirmEditNotes()">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно профиля -->
+<div class="modal" id="profileModal">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3>
+                <i class="fas fa-user" style="color: var(--accent-green);"></i>
+                Профиль участника
+            </h3>
+            <button class="modal-close" onclick="hideProfileModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="profileModalBody">
+            <!-- Данные профиля будут загружаться динамически -->
+        </div>
+        <div class="modal-footer" id="profileModalFooter">
+            <button class="modal-button cancel" onclick="hideProfileModal()">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    'use strict';
+    
+    let members = [];
+    let currentFilter = 'all';
+    let currentSearch = '';
+    let currentExcludeId = null;
+    let currentExcludeName = '';
+    let currentExcludeUserId = null;
+    let currentTierId = null;
+    let currentTierName = '';
+    let currentTierUserId = null;
+    let currentTierValue = 3;
+    let selectedTier = 3;
+    let currentEditNickStaticId = null;
+    let currentEditNickStaticUserId = null;
+    let currentEditNickStaticUserName = '';
+    let currentEditRealNameId = null;
+    let currentEditRealNameUserId = null;
+    let currentEditRealNameUserName = '';
+    let currentEditNotesId = null;
+    let currentEditNotesUserId = null;
+    let currentEditNotesUserName = '';
+    let currentMemberForNotes = null;
+    let isLoading = false;
+
+    // ===== WEBSOCKET =====
+    const socket = io();
+    
+    socket.on('connect', () => {
+        console.log('🔌 WebSocket подключен');
+        socket.emit('subscribe_members');
+    });
+    
+    socket.on('member_added', (data) => {
+        console.log('👥 Новый член семьи:', data);
+        loadMembers();
+        showNotification(`👥 Новый член семьи: ${data.username || 'Пользователь'}`);
+    });
+    
+    socket.on('member_removed', (data) => {
+        console.log('👋 Участник исключен:', data);
+        loadMembers();
+        showNotification(`👋 Участник исключен из семьи`);
+    });
+    
+    socket.on('member_updated', () => {
+        loadMembers();
+    });
+
+    // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
+    function formatDate(dateString) {
+        if (!dateString) return 'Неизвестно';
+        const date = new Date(dateString);
+        return date.toLocaleString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function formatDateShort(dateString) {
+        if (!dateString) return 'Неизвестно';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+    }
+
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type === 'error' ? 'error' : ''}`;
+        notification.innerHTML = `
+            <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'check-circle'}"></i>
+            <span>${message}</span>
+        `;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.animation = 'slideDown 0.3s ease-in forwards';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Функция для безопасного экранирования строк в onclick атрибутах
+    function escapeForOnclick(str) {
+        if (!str) return '';
+        return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    function truncateText(text, maxLength) {
+        if (!text) return '';
+        if (text.length <= maxLength) return escapeHtml(text);
+        return escapeHtml(text.substring(0, maxLength)) + '...';
+    }
+
+    function getTierClass(tier) {
+        if (tier === 1) return 'tier-1';
+        if (tier === 2) return 'tier-2';
+        return 'tier-3';
+    }
+
+    function getTierIcon(tier) {
+        if (tier === 1) return 'crown';
+        if (tier === 2) return 'star';
+        return 'user';
+    }
+
+    function showLoading() {
+        const container = document.getElementById('membersTableContainer');
+        container.innerHTML = `
+            <div class="members-table-container">
+                <table class="members-table">
+                    <thead>
+                        <tr>
+                            <th>Пользователь</th>
+                            <th>Tier</th>
+                            <th>Ник / Static</th>
+                            <th>В семье с</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${Array(5).fill(0).map(() => `
+                            <tr class="loading-skeleton">
+                                <td><div style="height: 18px; width: 120px; background: rgba(255,255,255,0.05); border-radius: 4px;"></div></td>
+                                <td><div style="height: 18px; width: 40px; background: rgba(255,255,255,0.05); border-radius: 4px;"></div></td>
+                                <td><div style="height: 18px; width: 80px; background: rgba(255,255,255,0.05); border-radius: 4px;"></div></td>
+                                <td><div style="height: 18px; width: 70px; background: rgba(255,255,255,0.05); border-radius: 4px;"></div></td>
+                                <td><div style="height: 18px; width: 60px; background: rgba(255,255,255,0.05); border-radius: 4px;"></div></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    function updateClearSearchButton() {
+        const clearBtn = document.getElementById('clearSearchBtn');
+        if (clearBtn) {
+            clearBtn.style.display = currentSearch ? 'block' : 'none';
+        }
+    }
+
+    // ===== МОДАЛЬНЫЕ ОКНА =====
+    window.showProfileModal = function(member) {
+        const modalBody = document.getElementById('profileModalBody');
+        const modalFooter = document.getElementById('profileModalFooter');
+        
+        const joinDate = member.joined_at || member.created_at;
+        const tier = member.tier || 3;
+        const tierClass = getTierClass(tier);
+        const tierIcon = getTierIcon(tier);
+        
+        // Получаем реальное имя и возраст
+        let realName = member.real_name || '';
+        let birthDate = member.birth_date || '';
+        
+        // Если нет real_name, пытаемся получить из full_name
+        if (!realName && member.full_name) {
+            const parts = member.full_name.split(',');
+            realName = parts[0] || '';
+            if (!birthDate && parts.length > 1) {
+                birthDate = parts[1].trim();
+            }
+        }
+        
+        // Информация о принявшем администраторе
+        let reviewerInfo = '';
+        if (member.reviewed_by) {
+            reviewerInfo = `
+                <div class="modal-review-info">
+                    <i class="fas fa-user-shield"></i>
+                    <div>
+                        <span class="reviewer-name">${escapeHtml(member.reviewer_name || 'Администратор')}</span>
+                        <span class="review-date">принял(а) ${formatDate(member.reviewed_at || joinDate)}</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Форматируем заметки для отображения
+        const notes = member.profile_notes || member.notes || '';
+        const notesDisplay = notes ? 
+            `<div class="notes-content">${escapeHtml(notes).replace(/\n/g, '<br>')}</div>` : 
+            '<span class="modal-field-value">—</span>';
+        
+        // Экранируем значения для onclick атрибутов
+        const safeUsername = escapeForOnclick(member.username);
+        const safeRealName = escapeForOnclick(realName);
+        const safeBirthDate = escapeForOnclick(birthDate);
+        const safeNick = escapeForOnclick(member.nick || '');
+        const safeStatic = escapeForOnclick(member.static || '');
+        const safeNotes = escapeForOnclick(notes);
+        
+        modalBody.innerHTML = `
+            <div class="modal-profile">
+                <img src="${member.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png'}" 
+                     alt="" class="modal-avatar"
+                     onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+                <div class="modal-user-info">
+                    <div class="modal-username">
+                        ${escapeHtml(member.username)}
+                        <span class="modal-tier-badge ${tierClass}" onclick="hideProfileModal(); setTimeout(() => showTierModalFromProfile(${member.id}, '${member.user_id}', '${safeUsername}', ${tier}), 300)" title="Изменить Tier">
+                            <i class="fas fa-${tierIcon}"></i>
+                        </span>
+                    </div>
+                    <div class="modal-discord">
+                        <i class="fab fa-discord"></i>
+                        ${escapeHtml(member.discord_name)}
+                    </div>
+                    <div class="modal-user-id">ID: ${member.user_id}</div>
+                </div>
+            </div>
+            
+            ${reviewerInfo}
+            
+            <div style="margin-bottom: 1rem; padding: 0.5rem 0.8rem; background: rgba(16, 185, 129, 0.1); border-radius: 12px; border-left: 3px solid var(--accent-green);">
+                <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted); font-size: 0.75rem;">
+                    <i class="fas fa-calendar-alt" style="color: var(--accent-green);"></i>
+                    <span>В семье с <strong>${formatDate(joinDate)}</strong></span>
+                </div>
+            </div>
+            
+            <div class="modal-grid">
+                <div class="modal-field">
+                    <div class="modal-field-label">
+                        <i class="fas fa-user-tag"></i>
+                        Отображаемое имя
+                    </div>
+                    <div class="modal-field-value editable" onclick="hideProfileModal(); setTimeout(() => showEditRealNameModal(${member.id}, '${member.user_id}', '${safeUsername}', '${safeRealName}', '${safeBirthDate}'), 300)">
+                        ${escapeHtml(realName) || '—'}
+                        <i class="fas fa-pen" title="Редактировать"></i>
+                    </div>
+                </div>
+                <div class="modal-field">
+                    <div class="modal-field-label">
+                        <i class="fas fa-birthday-cake"></i>
+                        Возраст / ДР
+                    </div>
+                    <div class="modal-field-value editable" onclick="hideProfileModal(); setTimeout(() => showEditRealNameModal(${member.id}, '${member.user_id}', '${safeUsername}', '${safeRealName}', '${safeBirthDate}'), 300)">
+                        ${escapeHtml(birthDate) || '—'}
+                        <i class="fas fa-pen" title="Редактировать"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-grid">
+                <div class="modal-field">
+                    <div class="modal-field-label">
+                        <i class="fas fa-tag"></i>
+                        Nick
+                    </div>
+                    <div class="modal-field-value editable" onclick="hideProfileModal(); setTimeout(() => showEditNickStaticModal(${member.id}, '${member.user_id}', '${safeUsername}', '${safeNick}', '${safeStatic}'), 300)">
+                        ${escapeHtml(member.nick) || '—'}
+                        <i class="fas fa-pen" title="Редактировать"></i>
+                    </div>
+                </div>
+                <div class="modal-field">
+                    <div class="modal-field-label">
+                        <i class="fas fa-hashtag"></i>
+                        Static
+                    </div>
+                    <div class="modal-field-value editable" onclick="hideProfileModal(); setTimeout(() => showEditNickStaticModal(${member.id}, '${member.user_id}', '${safeUsername}', '${safeNick}', '${safeStatic}'), 300)">
+                        ${escapeHtml(member.static) || '—'}
+                        <i class="fas fa-pen" title="Редактировать"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-field full-width">
+                <div class="modal-field-label">
+                    <i class="fas fa-layer-group"></i>
+                    Tier
+                </div>
+                <div class="modal-field-value editable" onclick="hideProfileModal(); setTimeout(() => showTierModalFromProfile(${member.id}, '${member.user_id}', '${safeUsername}', ${tier}), 300)">
+                    <span class="table-tier ${tierClass}">
+                        <i class="fas fa-${tierIcon}"></i>
+                    </span>
+                    Tier ${tier}
+                    <i class="fas fa-pen" style="margin-left: 0.5rem;" title="Изменить"></i>
+                </div>
+            </div>
+            
+            <div class="modal-field full-width">
+                <div class="modal-field-label">
+                    <div class="notes-header">
+                        <i class="fas fa-sticky-note" style="color: var(--accent-yellow);"></i>
+                        Заметки администратора
+                        ${notes ? '<span class="note-indicator" style="margin-left: 0.5rem;" title="Есть заметки"></span>' : ''}
+                        ${notes ? `
+                            <button class="clear-notes-btn" onclick="event.stopPropagation(); deleteNotes(${member.id}, '${member.user_id}', '${safeUsername}')" title="Удалить заметку">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+                <div class="modal-field-value editable" onclick="hideProfileModal(); setTimeout(() => showEditNotesModal(${member.id}, '${member.user_id}', '${safeUsername}', '${safeNotes}'), 300)">
+                    ${notes ? 'Редактировать заметки' : 'Добавить заметки'}
+                    <i class="fas fa-pen" title="${notes ? 'Редактировать' : 'Добавить'}"></i>
+                </div>
+                ${notes ? notesDisplay : ''}
+            </div>
+        `;
+        
+        modalFooter.innerHTML = `
+            <button class="modal-button cancel" onclick="hideProfileModal()">Закрыть</button>
+        `;
+        
+        document.getElementById('profileModal').classList.add('show');
+    };
+
+    window.hideProfileModal = function() {
+        const modal = document.getElementById('profileModal');
+        modal.classList.remove('show');
+    };
+
+    window.showExcludeModal = function(applicationId, username, userId) {
+        currentExcludeId = applicationId;
+        currentExcludeName = username;
+        currentExcludeUserId = userId;
+        document.getElementById('excludeMemberName').textContent = username;
+        document.getElementById('excludeReason').value = '';
+        document.getElementById('excludeBlacklist').checked = false;
+        document.getElementById('excludeModal').classList.add('show');
+    };
+
+    window.hideExcludeModal = function() {
+        document.getElementById('excludeModal').classList.remove('show');
+        currentExcludeId = null;
+        currentExcludeName = '';
+        currentExcludeUserId = null;
+    };
+
+    window.confirmExclude = async function() {
+        if (!currentExcludeId || !currentExcludeUserId) return;
+        
+        const reason = document.getElementById('excludeReason').value.trim();
+        const blacklist = document.getElementById('excludeBlacklist').checked;
+        
+        if (!reason) {
+            showNotification('Укажите причину исключения', 'error');
+            return;
+        }
+        
+        const confirmBtn = document.querySelector('#excludeModal .modal-button.exclude');
+        const originalText = confirmBtn.innerHTML;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Исключение...';
+        confirmBtn.disabled = true;
+        
+        try {
+            const response = await fetch(`/api/admin/family-members/${currentExcludeUserId}/exclude`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    reason: reason,
+                    blacklist: blacklist
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification(`Участник ${currentExcludeName} исключен${blacklist ? ' и добавлен в черный список' : ''}`);
+                hideExcludeModal();
+                await loadMembers();
+            } else {
+                showNotification(data.error || 'Ошибка при исключении участника', 'error');
+            }
+        } catch (error) {
+            console.error('Ошибка при исключении участника:', error);
+            showNotification('Ошибка при исключении участника', 'error');
+        } finally {
+            confirmBtn.innerHTML = originalText;
+            confirmBtn.disabled = false;
+        }
+    };
+
+    // ===== ФУНКЦИИ ДЛЯ TIER =====
+    window.showTierModalFromProfile = function(id, userId, username, currentTier) {
+        currentTierId = id;
+        currentTierUserId = userId;
+        currentTierName = username;
+        currentTierValue = currentTier || 3;
+        selectedTier = currentTier || 3;
+        
+        document.getElementById('tierMemberName').textContent = username;
+        document.getElementById('selectedTierDisplay').textContent = `Tier ${selectedTier}`;
+        
+        // Подсветка выбранного Tier
+        document.querySelectorAll('.tier-option').forEach(opt => opt.classList.remove('selected'));
+        document.getElementById(`tierOption${selectedTier}`).classList.add('selected');
+        
+        document.getElementById('tierModal').classList.add('show');
+    };
+
+    window.hideTierModal = function() {
+        document.getElementById('tierModal').classList.remove('show');
+        currentTierId = null;
+        currentTierUserId = null;
+        currentTierName = '';
+    };
+
+    window.selectTier = function(tier) {
+        selectedTier = tier;
+        document.querySelectorAll('.tier-option').forEach(opt => opt.classList.remove('selected'));
+        document.getElementById(`tierOption${tier}`).classList.add('selected');
+        document.getElementById('selectedTierDisplay').textContent = `Tier ${tier}`;
+    };
+
+    window.confirmTierChange = async function() {
+        if (!currentTierId || !currentTierUserId) return;
+        
+        const confirmBtn = document.querySelector('#tierModal .modal-button.tier');
+        const originalText = confirmBtn.innerHTML;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+        confirmBtn.disabled = true;
+        
+        try {
+            const response = await fetch(`/api/admin/family-members/${currentTierUserId}/tier`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    tier: selectedTier
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification(`Tier изменен на ${selectedTier} для ${currentTierName}`);
+                hideTierModal();
+                await loadMembers();
+            } else {
+                showNotification(data.error || 'Ошибка при изменении Tier', 'error');
+            }
+        } catch (error) {
+            console.error('Ошибка при изменении Tier:', error);
+            showNotification('Ошибка при изменении Tier', 'error');
+        } finally {
+            confirmBtn.innerHTML = originalText;
+            confirmBtn.disabled = false;
+        }
+    };
+
+    // ===== ФУНКЦИИ ДЛЯ РЕДАКТИРОВАНИЯ НИКА И СТАТИКА =====
+    window.showEditNickStaticModal = function(id, userId, username, currentNick, currentStatic) {
+        currentEditNickStaticId = id;
+        currentEditNickStaticUserId = userId;
+        currentEditNickStaticUserName = username;
+        
+        document.getElementById('editNickStaticUserName').textContent = username;
+        document.getElementById('editNickInput').value = currentNick || '';
+        document.getElementById('editStaticInput').value = currentStatic || '';
+        
+        document.getElementById('editNickStaticModal').classList.add('show');
+    };
+
+    window.hideEditNickStaticModal = function() {
+        document.getElementById('editNickStaticModal').classList.remove('show');
+        currentEditNickStaticId = null;
+        currentEditNickStaticUserId = null;
+        currentEditNickStaticUserName = '';
+    };
+
+    window.confirmEditNickStatic = async function() {
+        if (!currentEditNickStaticId || !currentEditNickStaticUserId) return;
+        
+        const nick = document.getElementById('editNickInput').value.trim();
+        const staticVal = document.getElementById('editStaticInput').value.trim();
+        
+        const confirmBtn = document.querySelector('#editNickStaticModal .modal-button.save');
+        const originalText = confirmBtn.innerHTML;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+        confirmBtn.disabled = true;
+        
+        try {
+            const response = await fetch(`/api/admin/family-members/${currentEditNickStaticUserId}/nick-static`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    nick: nick,
+                    static: staticVal
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification(`Nick/Static обновлены`);
+                hideEditNickStaticModal();
+                await loadMembers();
+            } else {
+                showNotification(data.error || 'Ошибка при обновлении', 'error');
+            }
+        } catch (error) {
+            console.error('Ошибка при обновлении:', error);
+            showNotification('Ошибка при обновлении', 'error');
+        } finally {
+            confirmBtn.innerHTML = originalText;
+            confirmBtn.disabled = false;
+        }
+    };
+
+    // ===== ФУНКЦИИ ДЛЯ РЕДАКТИРОВАНИЯ РЕАЛЬНОГО ИМЕНИ И ВОЗРАСТА =====
+    window.showEditRealNameModal = function(id, userId, username, currentRealName, currentBirthDate) {
+        currentEditRealNameId = id;
+        currentEditRealNameUserId = userId;
+        currentEditRealNameUserName = username;
+        
+        document.getElementById('editRealNameUserName').textContent = username;
+        document.getElementById('editRealNameInput').value = currentRealName || '';
+        document.getElementById('editBirthdayInput').value = currentBirthDate || '';
+        
+        document.getElementById('editRealNameModal').classList.add('show');
+    };
+
+    window.hideEditRealNameModal = function() {
+        document.getElementById('editRealNameModal').classList.remove('show');
+        currentEditRealNameId = null;
+        currentEditRealNameUserId = null;
+        currentEditRealNameUserName = '';
+    };
+
+    window.confirmEditRealName = async function() {
+        if (!currentEditRealNameId || !currentEditRealNameUserId) return;
+        
+        const realName = document.getElementById('editRealNameInput').value.trim();
+        const birthDate = document.getElementById('editBirthdayInput').value.trim();
+        
+        const confirmBtn = document.querySelector('#editRealNameModal .modal-button.save');
+        const originalText = confirmBtn.innerHTML;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+        confirmBtn.disabled = true;
+        
+        try {
+            const response = await fetch(`/api/admin/family-members/${currentEditRealNameUserId}/profile`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    real_name: realName,
+                    birth_date: birthDate
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification(`Профиль обновлен`);
+                hideEditRealNameModal();
+                await loadMembers();
+            } else {
+                showNotification(data.error || 'Ошибка при обновлении профиля', 'error');
+            }
+        } catch (error) {
+            console.error('Ошибка при обновлении профиля:', error);
+            showNotification('Ошибка при обновлении профиля', 'error');
+        } finally {
+            confirmBtn.innerHTML = originalText;
+            confirmBtn.disabled = false;
+        }
+    };
+
+    // ===== ФУНКЦИИ ДЛЯ ЗАМЕТОК =====
+    window.clearNotes = function() {
+        if (confirm('Очистить всю заметку?')) {
+            document.getElementById('editNotesText').value = '';
+        }
+    };
+
+    window.deleteNotes = async function(id, userId, username) {
+        if (!confirm('Удалить все заметки?')) return;
+        
+        try {
+            const response = await fetch(`/api/admin/family-members/${userId}/notes`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    notes: ''
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification('Заметки удалены');
+                hideProfileModal();
+                await loadMembers();
+            } else {
+                showNotification(data.error || 'Ошибка при удалении заметок', 'error');
+            }
+        } catch (error) {
+            console.error('Ошибка при удалении заметок:', error);
+            showNotification('Ошибка при удалении заметок', 'error');
+        }
+    };
+
+    window.showEditNotesModal = function(id, userId, username, currentNotes) {
+        currentEditNotesId = id;
+        currentEditNotesUserId = userId;
+        currentEditNotesUserName = username;
+        currentMemberForNotes = { id, userId, username, notes: currentNotes };
+        
+        document.getElementById('editNotesUserName').textContent = username;
+        document.getElementById('editNotesText').value = currentNotes || '';
+        
+        document.getElementById('editNotesModal').classList.add('show');
+    };
+
+    window.hideEditNotesModal = function() {
+        document.getElementById('editNotesModal').classList.remove('show');
+        currentEditNotesId = null;
+        currentEditNotesUserId = null;
+        currentEditNotesUserName = null;
+        currentMemberForNotes = null;
+    };
+
+    window.confirmEditNotes = async function() {
+        if (!currentEditNotesId || !currentEditNotesUserId) return;
+        
+        const notes = document.getElementById('editNotesText').value.trim();
+        
+        const confirmBtn = document.querySelector('#editNotesModal .modal-button.save');
+        const originalText = confirmBtn.innerHTML;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+        confirmBtn.disabled = true;
+        
+        try {
+            const response = await fetch(`/api/admin/family-members/${currentEditNotesUserId}/notes`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    notes: notes
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification(`Заметки обновлены`);
+                hideEditNotesModal();
+                await loadMembers();
+            } else {
+                showNotification(data.error || 'Ошибка при обновлении заметок', 'error');
+            }
+        } catch (error) {
+            console.error('Ошибка при обновлении заметок:', error);
+            showNotification('Ошибка при обновлении заметок', 'error');
+        } finally {
+            confirmBtn.innerHTML = originalText;
+            confirmBtn.disabled = false;
+        }
+    };
+
+    // ===== ПОИСК И ФИЛЬТРАЦИЯ =====
+    window.searchMembers = function() {
+        currentSearch = document.getElementById('searchInput').value.toLowerCase();
+        updateClearSearchButton();
+        renderMembers();
+    };
+
+    window.clearSearch = function() {
+        document.getElementById('searchInput').value = '';
+        currentSearch = '';
+        updateClearSearchButton();
+        renderMembers();
+    };
+
+    window.filterMembers = function(filter) {
+        currentFilter = filter;
+        
+        document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`filter${filter.charAt(0).toUpperCase() + filter.slice(1)}`).classList.add('active');
+        
+        renderMembers();
+    };
+
+    // ===== ЗАГРУЗКА УЧАСТНИКОВ =====
+    window.loadMembers = async function(force = false) {
+        if (isLoading && !force) return;
+        
+        isLoading = true;
+        const refreshBtn = document.getElementById('refreshBtn');
+        if (refreshBtn) {
+            refreshBtn.classList.add('loading');
+            const icon = refreshBtn.querySelector('i');
+            if (icon) icon.classList.add('fa-spin');
+        }
+        
+        showLoading();
+        
+        try {
+            const response = await fetch('/api/admin/family-members');
+            const data = await response.json();
+            
+            if (data.success) {
+                members = data.data;
+                // Добавляем tier по умолчанию, если его нет
+                members = members.map(m => ({
+                    ...m,
+                    tier: m.tier || 3,
+                    real_name: m.real_name || '',
+                    birth_date: m.birth_date || ''
+                }));
+                updateStats();
+                renderMembers();
+            } else {
+                throw new Error(data.error || 'Не удалось загрузить данные');
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки участников:', error);
+            showNotification('Ошибка загрузки участников', 'error');
+            
+            const container = document.getElementById('membersTableContainer');
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-exclamation-triangle" style="color: #EF4444;"></i>
+                    </div>
+                    <h3 class="empty-title">Ошибка загрузки</h3>
+                    <p class="empty-text">Не удалось загрузить участников</p>
+                    <button onclick="loadMembers(true)" class="filter-button" style="margin-top: 1rem;">
+                        <i class="fas fa-sync-alt"></i> Повторить
+                    </button>
+                </div>
+            `;
+        } finally {
+            isLoading = false;
+            if (refreshBtn) {
+                refreshBtn.classList.remove('loading');
+                const icon = refreshBtn.querySelector('i');
+                if (icon) icon.classList.remove('fa-spin');
+            }
+        }
+    };
+
+    // ===== ОБНОВЛЕНИЕ СТАТИСТИКИ =====
+    function updateStats() {
+        const total = members.length;
+        const now = new Date();
+        const oneMonthAgo = new Date(now.setMonth(now.getMonth() - 1));
+        
+        const newMembers = members.filter(member => {
+            const joinDate = new Date(member.joined_at || member.created_at);
+            return joinDate > oneMonthAgo;
+        }).length;
+        
+        document.getElementById('totalMembers').textContent = total;
+        document.getElementById('allCount').textContent = total;
+        document.getElementById('newCount').textContent = newMembers;
+        document.getElementById('newMembers').textContent = newMembers;
+    }
+
+    // ===== ОТОБРАЖЕНИЕ УЧАСТНИКОВ =====
+    function renderMembers() {
+        const container = document.getElementById('membersTableContainer');
+        
+        let filteredMembers = members;
+        
+        // Применяем фильтр
+        if (currentFilter === 'new') {
+            const now = new Date();
+            const oneMonthAgo = new Date(now.setMonth(now.getMonth() - 1));
+            filteredMembers = filteredMembers.filter(member => {
+                const joinDate = new Date(member.joined_at || member.created_at);
+                return joinDate > oneMonthAgo;
+            });
+        }
+        
+        // Применяем поиск
+        if (currentSearch) {
+            filteredMembers = filteredMembers.filter(member => 
+                (member.username && member.username.toLowerCase().includes(currentSearch)) ||
+                (member.real_name && member.real_name.toLowerCase().includes(currentSearch)) ||
+                (member.nick && member.nick.toLowerCase().includes(currentSearch)) ||
+                (member.static && member.static.toLowerCase().includes(currentSearch)) ||
+                (member.discord_name && member.discord_name.toLowerCase().includes(currentSearch)) ||
+                (member.user_id && member.user_id.includes(currentSearch))
+            );
+        }
+        
+        // Сортируем по дате вступления (новые сверху)
+        filteredMembers.sort((a, b) => {
+            const dateA = new Date(a.joined_at || a.created_at);
+            const dateB = new Date(b.joined_at || b.created_at);
+            return dateB - dateA;
+        });
+        
+        if (filteredMembers.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3 class="empty-title">Нет участников</h3>
+                    <p class="empty-text">${currentSearch ? 'По вашему запросу ничего не найдено' : 'Пока нет принятых участников'}</p>
+                    ${currentSearch ? '<button onclick="clearSearch()" class="filter-button" style="margin-top: 1rem;">Очистить поиск</button>' : ''}
+                </div>
+            `;
+            return;
+        }
+        
+        let tableHtml = `
+            <div class="members-table-container">
+                <table class="members-table">
+                    <thead>
+                        <tr>
+                            <th>Пользователь</th>
+                            <th>Tier</th>
+                            <th>Ник / Static</th>
+                            <th>В семье с</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        filteredMembers.forEach(member => {
+            const avatarUrl = member.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png';
+            const joinDate = member.joined_at || member.created_at;
+            const memberId = member.id;
+            const userId = member.user_id;
+            const username = member.username || 'Неизвестно';
+            const discordName = member.discord_name || username;
+            const tier = member.tier || 3;
+            const tierClass = getTierClass(tier);
+            const tierIcon = getTierIcon(tier);
+            
+            // Получаем реальное имя
+            let realName = member.real_name || '';
+            
+            // Если нет real_name, пытаемся получить из full_name
+            if (!realName && member.full_name) {
+                const parts = member.full_name.split(',');
+                realName = parts[0] || '';
+            }
+            
+            const isNew = (() => {
+                const now = new Date();
+                const oneMonthAgo = new Date(now.setMonth(now.getMonth() - 1));
+                return new Date(joinDate) > oneMonthAgo;
+            })();
+            
+            // Проверяем наличие непрочитанных заметок
+            const hasNotes = member.profile_notes || member.notes;
+            
+            const memberJson = JSON.stringify(member).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            
+            tableHtml += `
+                <tr>
+                    <td>
+                        <div class="table-user">
+                            <img src="${avatarUrl}" 
+                                 alt="" class="table-avatar"
+                                 onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+                            <div class="table-user-info">
+                                <span class="table-realname">
+                                    <i class="fas fa-user"></i>
+                                    ${escapeHtml(realName) || escapeHtml(username)}
+                                </span>
+                                <span class="table-discord">
+                                    <i class="fab fa-discord"></i>
+                                    ${escapeHtml(discordName)}
+                                </span>
+                                <span class="table-user-id">${userId}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="table-tier ${tierClass}" title="Tier ${tier}">
+                            <i class="fas fa-${tierIcon}"></i>
+                        </span>
+                    </td>
+                    <td>
+                        <div class="table-details">
+                            <div class="table-detail-item">
+                                <i class="fas fa-tag" style="color: var(--accent-purple);"></i>
+                                <span style="color: var(--accent-purple);">${escapeHtml(member.nick) || '—'}</span>
+                            </div>
+                            <div class="table-detail-item">
+                                <i class="fas fa-hashtag" style="color: var(--accent-yellow);"></i>
+                                <span style="color: var(--accent-yellow);">${escapeHtml(member.static) || '—'}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="table-date">
+                            <i class="fas fa-calendar-alt"></i>
+                            ${formatDateShort(joinDate)}
+                        </div>
+                        ${isNew ? '<span class="table-badge new"><i class="fas fa-star"></i> Новый</span>' : ''}
+                    </td>
+                    <td>
+                        <div class="table-actions">
+                            <button class="table-action-btn view" onclick='showProfileModal(${memberJson})' title="Просмотр">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="table-action-btn exclude" onclick="showExcludeModal(${memberId}, '${escapeHtml(username)}', '${userId}')" title="Исключить">
+                                <i class="fas fa-user-minus"></i>
+                            </button>
+                            ${hasNotes ? '<span class="note-indicator" title="Есть заметки"></span>' : ''}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        tableHtml += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        container.innerHTML = tableHtml;
+    }
+
+    // ===== ИНИЦИАЛИЗАЦИЯ =====
+    document.addEventListener('DOMContentLoaded', () => {
+        loadMembers();
+        updateClearSearchButton();
+        document.getElementById('filterAll').classList.add('active');
+    });
+
+    // Закрытие модальных окон
+    document.addEventListener('click', (event) => {
+        const excludeModal = document.getElementById('excludeModal');
+        const profileModal = document.getElementById('profileModal');
+        const tierModal = document.getElementById('tierModal');
+        const editNickStaticModal = document.getElementById('editNickStaticModal');
+        const editRealNameModal = document.getElementById('editRealNameModal');
+        const editNotesModal = document.getElementById('editNotesModal');
+        
+        if (event.target === excludeModal) {
+            hideExcludeModal();
+        }
+        if (event.target === profileModal) {
+            hideProfileModal();
+        }
+        if (event.target === tierModal) {
+            hideTierModal();
+        }
+        if (event.target === editNickStaticModal) {
+            hideEditNickStaticModal();
+        }
+        if (event.target === editRealNameModal) {
+            hideEditRealNameModal();
+        }
+        if (event.target === editNotesModal) {
+            hideEditNotesModal();
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            hideExcludeModal();
+            hideProfileModal();
+            hideTierModal();
+            hideEditNickStaticModal();
+            hideEditRealNameModal();
+            hideEditNotesModal();
+        }
+    });
+
+})();
+</script>
