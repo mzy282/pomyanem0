@@ -114,6 +114,7 @@ class WebServer {
         // Статические файлы
         this.app.use(express.static(join(__dirname, 'public')))
         
+        
         // Сессии
         const sessionConfig = {
             store: new SQLiteStoreSession({

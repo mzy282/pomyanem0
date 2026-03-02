@@ -1213,25 +1213,20 @@ title = 'Архив заявок';
     });
 
     // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
-    function formatDate(dateString) {
-        if (!dateString) return 'Неизвестно';
-        
-        try {
-            // Создаем дату и добавляем 3 часа для МСК
-            const date = new Date(dateString);
-            date.setHours(date.getHours() + 3);
-            
-            const day = String(date.getUTCDate()).padStart(2, '0');
-            const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-            const hours = String(date.getUTCHours()).padStart(2, '0');
-            const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-            
-            return `${day}.${month}, ${hours}:${minutes}`;
-        } catch (e) {
-            console.error('Ошибка форматирования даты:', e);
-            return 'Ошибка';
-        }
-    }
+function formatDate(dateString) {
+    if (!dateString) return 'Неизвестно';
+    const date = new Date(dateString);
+    
+    // Конвертируем в московское время (UTC+3)
+    const mskDate = new Date(date.toLocaleString('en-US', { timeZone: 'Europe/Moscow' }));
+    
+    return mskDate.toLocaleString('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
 
     function showNotification(message, type = 'success') {
         const notification = document.createElement('div');
@@ -1323,7 +1318,7 @@ title = 'Архив заявок';
         }
     }
 
-    // ===== ЗАГРУЗКА АДМИНИСТРАТОРОВ (точно как в applications.ejs) =====
+    // ===== ЗАГРУЗКА АДМИНИСТРАТОРОВ =====
     async function loadAdmins() {
         try {
             const response = await fetch('/api/admin/admins');
@@ -1349,7 +1344,7 @@ title = 'Архив заявок';
         const statusIcon = application.status === 'accepted' ? '✅' : '❌';
         const statusText = application.status === 'accepted' ? 'Принят' : 'Отклонен';
         
-        // Получаем имя администратора (как в applications.ejs)
+        // Получаем имя администратора
         let adminName = 'Администратор';
         let actionText = 'Обработал';
         
@@ -1518,7 +1513,7 @@ title = 'Архив заявок';
             if (appsData.success) {
                 applications = appsData.data || [];
                 
-                // Загружаем администраторов (как в applications.ejs)
+                // Загружаем администраторов
                 if (adminsResponse.success) {
                     const adminsData = await adminsResponse.json();
                     adminsMap = {};
@@ -1633,7 +1628,7 @@ title = 'Архив заявок';
             const statusIcon = app.status === 'accepted' ? '✅' : '❌';
             const statusText = app.status === 'accepted' ? 'Принят' : 'Отклонен';
             
-            // Получаем имя администратора (как в applications.ejs)
+            // Получаем имя администратора
             let adminName = 'Администратор';
             if (app.reviewed_by) {
                 adminName = adminsMap[app.reviewed_by] || app.reviewed_by;
