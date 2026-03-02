@@ -1217,11 +1217,10 @@ title = 'Архив заявок';
         if (!dateString) return 'Неизвестно';
         
         try {
-            // Создаем дату и сразу добавляем 3 часа для МСК
+            // Создаем дату и добавляем 3 часа для МСК
             const date = new Date(dateString);
             date.setHours(date.getHours() + 3);
             
-            // Форматируем
             const day = String(date.getUTCDate()).padStart(2, '0');
             const month = String(date.getUTCMonth() + 1).padStart(2, '0');
             const hours = String(date.getUTCHours()).padStart(2, '0');
@@ -1261,12 +1260,9 @@ title = 'Архив заявок';
         return escapeHtml(text.substring(0, maxLength)) + '...';
     }
 
-    // Функция для преобразования текста в ссылки
     function linkify(text) {
         if (!text) return '';
-        
         const urlRegex = /(https?:\/\/[^\s]+)/g;
-        
         return text.replace(urlRegex, function(url) {
             return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
         });
@@ -1327,6 +1323,24 @@ title = 'Архив заявок';
         }
     }
 
+    // ===== ЗАГРУЗКА АДМИНИСТРАТОРОВ (точно как в applications.ejs) =====
+    async function loadAdmins() {
+        try {
+            const response = await fetch('/api/admin/admins');
+            const data = await response.json();
+            
+            if (data.success) {
+                adminsMap = {};
+                data.data.forEach(admin => {
+                    adminsMap[admin.user_id] = admin.username;
+                });
+                console.log('✅ Администраторы загружены:', adminsMap);
+            }
+        } catch (error) {
+            console.error('❌ Ошибка загрузки админов:', error);
+        }
+    }
+
     // ===== МОДАЛЬНЫЕ ОКНА =====
     window.showViewModal = function(application) {
         const modalBody = document.getElementById('viewModalBody');
@@ -1335,17 +1349,12 @@ title = 'Архив заявок';
         const statusIcon = application.status === 'accepted' ? '✅' : '❌';
         const statusText = application.status === 'accepted' ? 'Принят' : 'Отклонен';
         
-        // Получаем имя администратора
-        let adminName = 'Не указан';
+        // Получаем имя администратора (как в applications.ejs)
+        let adminName = 'Администратор';
         let actionText = 'Обработал';
         
         if (application.reviewed_by) {
-            // Проверяем, есть ли имя в карте
-            if (adminsMap[application.reviewed_by]) {
-                adminName = adminsMap[application.reviewed_by];
-            } else {
-                adminName = application.reviewed_by;
-            }
+            adminName = adminsMap[application.reviewed_by] || application.reviewed_by;
             
             if (application.reviewed_at) {
                 actionText = application.status === 'accepted' ? 'Принял' : 'Отклонил';
@@ -1360,7 +1369,6 @@ title = 'Архив заявок';
         let gungLinks = application.gung_links || 'Не указано';
         let fullName = application.full_name || '';
         
-        // Если нет новых полей, пытаемся получить из full_name
         if (!nickStatic && fullName) {
             const parts = fullName.split(',');
             userName = parts[0]?.trim() || '';
@@ -1510,21 +1518,19 @@ title = 'Архив заявок';
             if (appsData.success) {
                 applications = appsData.data || [];
                 
-                // Загружаем администраторов
+                // Загружаем администраторов (как в applications.ejs)
                 if (adminsResponse.success) {
                     const adminsData = await adminsResponse.json();
                     adminsMap = {};
                     if (adminsData.data) {
                         adminsData.data.forEach(admin => {
-                            // Сохраняем username
-                            if (admin.username) {
-                                adminsMap[admin.user_id] = admin.username;
-                            } else {
-                                adminsMap[admin.user_id] = admin.user_id;
-                            }
+                            adminsMap[admin.user_id] = admin.username;
                         });
                     }
-                    console.log('📦 Карта администраторов:', adminsMap);
+                    console.log('✅ Карта администраторов:', adminsMap);
+                } else {
+                    // Если не удалось, загружаем отдельно
+                    await loadAdmins();
                 }
                 
                 updateStats();
@@ -1627,17 +1633,15 @@ title = 'Архив заявок';
             const statusIcon = app.status === 'accepted' ? '✅' : '❌';
             const statusText = app.status === 'accepted' ? 'Принят' : 'Отклонен';
             
-            // Получаем имя администратора
-            let adminName = 'Не указан';
+            // Получаем имя администратора (как в applications.ejs)
+            let adminName = 'Администратор';
             if (app.reviewed_by) {
                 adminName = adminsMap[app.reviewed_by] || app.reviewed_by;
             }
             
-            // Получаем Nick/Static
             let nickStatic = app.nick_static || '';
             let fullName = app.full_name || '';
             
-            // Если нет новых полей, пытаемся получить из full_name
             if (!nickStatic && fullName) {
                 const parts = fullName.split(',');
                 nickStatic = parts[2]?.trim() || '';
