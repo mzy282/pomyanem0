@@ -334,6 +334,17 @@ async function acceptApplication(req, applicationId, nick, staticVal) {
                     })
                 }
                 console.log('✅ Участник добавлен/обновлен в family_members')
+                
+                // Логируем действие
+                dbManager.addDetailedLog({
+                    user_id: req?.user?.user_id || 'system',
+                    action: 'application_accept',
+                    entity_type: 'application',
+                    entity_id: applicationId,
+                    details: `Принята заявка от ${application.username}, ник: ${nick} | ${staticVal}`,
+                    new_value: { nick, static: staticVal }
+                });
+                
             } catch (dbError) {
                 console.error('❌ Ошибка при добавлении в family_members:', dbError.message)
                 // Не возвращаем ошибку, так как роль уже выдана
@@ -403,109 +414,174 @@ async function acceptApplication(req, applicationId, nick, staticVal) {
 // ==================== ОБРАБОТЧИКИ ВЗАИМОДЕЙСТВИЙ ====================
 client.on('interactionCreate', async (interaction) => {
     try {
-        if (interaction.isButton() && interaction.customId === 'open_modal') {
-            const modal = new ModalBuilder()
-                .setCustomId('application_modal')
-                .setTitle('📝 Заявка в семью')
-            
-            const inputs = [
-                new TextInputBuilder()
+        // Обработка кнопки
+        if (interaction.isButton()) {
+            if (interaction.customId === 'open_modal') {
+                console.log('🔘 Нажата кнопка open_modal');
+                
+                const modal = new ModalBuilder()
+                    .setCustomId('application_modal')
+                    .setTitle('📝 Заявка в семью KINGSIZE')
+                
+                // Создаем поля с короткими placeholders (максимум 100 символов)
+                const nickStaticInput = new TextInputBuilder()
+                    .setCustomId('nick_static_input')
+                    .setLabel('1. Nick/Static')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Skillet Kingsize / 3811')
+                    .setRequired(true)
+                    .setMinLength(3)
+                    .setMaxLength(100)
+                
+                const nameInput = new TextInputBuilder()
                     .setCustomId('name_input')
-                    .setLabel('Имя, возраст, ник и статик:')
-                    .setStyle(TextInputStyle.Paragraph)
-                    .setPlaceholder('Владислав, 25 лет, Skillet Kingsize, 3811')
+                    .setLabel('2. Ваше имя')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Владислав')
                     .setRequired(true)
-                    .setMinLength(10)
-                    .setMaxLength(1000),
+                    .setMinLength(2)
+                    .setMaxLength(50)
                 
-                new TextInputBuilder()
-                    .setCustomId('time_input')
-                    .setLabel('Время игры на Majestic RP:')
-                    .setStyle(TextInputStyle.Paragraph)
+                const ageInput = new TextInputBuilder()
+                    .setCustomId('age_input')
+                    .setLabel('3. Ваш возраст')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('25')
                     .setRequired(true)
-                    .setMinLength(10)
-                    .setMaxLength(1000),
+                    .setMinLength(1)
+                    .setMaxLength(3)
                 
-                new TextInputBuilder()
-                    .setCustomId('server_input')
-                    .setLabel('На каких серверах и в каких семьях играли:')
+                const experienceInput = new TextInputBuilder()
+                    .setCustomId('experience_combined_input')
+                    .setLabel('4. Опыт игры (сервера/семьи/МП)')
                     .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder('Время игры, сервера, семьи, опыт МП')
                     .setRequired(true)
-                    .setMinLength(10)
-                    .setMaxLength(1000),
+                    .setMinLength(20)
+                    .setMaxLength(1500)
                 
-                new TextInputBuilder()
-                    .setCustomId('exp_input')
-                    .setLabel('Опыт участия в МП:')
-                    .setStyle(TextInputStyle.Paragraph)
-                    .setRequired(true)
-                    .setMinLength(10)
-                    .setMaxLength(1000),
-
-                new TextInputBuilder()
+                const gungInput = new TextInputBuilder()
                     .setCustomId('gung_input')
-                    .setLabel('Откаты с ГГ (ссылки на YouTube/RuTube):')
+                    .setLabel('5. Откаты с гангейма (ссылки)')
                     .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder('https://youtu.be/...')
                     .setRequired(true)
                     .setMinLength(10)
                     .setMaxLength(1000)
-            ]
-            
-            modal.addComponents(...inputs.map(input => new ActionRowBuilder().addComponents(input)))
-            await interaction.showModal(modal)
+                
+                // Добавляем каждое поле в отдельный ActionRow
+                const firstRow = new ActionRowBuilder().addComponents(nickStaticInput);
+                const secondRow = new ActionRowBuilder().addComponents(nameInput);
+                const thirdRow = new ActionRowBuilder().addComponents(ageInput);
+                const fourthRow = new ActionRowBuilder().addComponents(experienceInput);
+                const fifthRow = new ActionRowBuilder().addComponents(gungInput);
+                
+                modal.addComponents(firstRow, secondRow, thirdRow, fourthRow, fifthRow);
+                
+                await interaction.showModal(modal);
+                console.log('✅ Модальное окно показано');
+            }
         }
         
-        if (interaction.isModalSubmit() && interaction.customId === 'application_modal') {
-            const cooldown = checkCooldown(interaction.user.id)
-            if (cooldown.onCooldown) {
-                return await interaction.reply({ 
-                    content: `❌ Подождите ${cooldown.timeLeft} секунд`, 
-                    flags: 64 
-                })
+        // Обработка отправки модального окна
+        if (interaction.isModalSubmit()) {
+            if (interaction.customId === 'application_modal') {
+                console.log('📝 Получена отправка модального окна');
+                
+                const cooldown = checkCooldown(interaction.user.id)
+                if (cooldown.onCooldown) {
+                    return await interaction.reply({ 
+                        content: `❌ Подождите ${cooldown.timeLeft} секунд`, 
+                        flags: 64 
+                    })
+                }
+                
+                try {
+                    // Собираем данные из формы
+                    const formData = {
+                        nick_static: interaction.fields.getTextInputValue('nick_static_input'),
+                        name: interaction.fields.getTextInputValue('name_input'),
+                        age: interaction.fields.getTextInputValue('age_input'),
+                        experience_combined: interaction.fields.getTextInputValue('experience_combined_input'),
+                        gung: interaction.fields.getTextInputValue('gung_input')
+                    }
+                    
+                    console.log('📋 Данные формы:', formData);
+                    
+                    // Формируем полное имя для обратной совместимости
+                    const fullName = `${formData.name}, ${formData.age} лет, ${formData.nick_static}`;
+                    
+                    // Сохраняем заявку
+                    const user = dbManager.ensureUser({
+                        id: interaction.user.id,
+                        username: interaction.user.username,
+                        discriminator: interaction.user.discriminator,
+                        displayAvatarURL: () => interaction.user.displayAvatarURL({ format: 'png', size: 256 })
+                    })
+                    
+                    const application = await dbManager.createApplication({
+                        user_id: interaction.user.id,
+                        username: interaction.user.username,
+                        discord_name: interaction.user.tag,
+                        avatar_url: interaction.user.displayAvatarURL({ format: 'png', size: 256 }),
+                        full_name: fullName,
+                        // Сохраняем отдельные поля
+                        nick_static: formData.nick_static,
+                        user_name: formData.name,
+                        age: formData.age,
+                        // В play_time_info сохраняем объединенный опыт
+                        play_time_info: formData.experience_combined,
+                        servers_history: formData.experience_combined, // Для обратной совместимости
+                        mp_experience: formData.experience_combined, // Для обратной совместимости
+                        gung_links: formData.gung,
+                        created_at: new Date().toISOString(),
+                        status: 'pending'
+                    })
+                    
+                    console.log(`✅ Заявка #${application.id} создана`);
+                    
+                    // Логируем создание заявки
+                    dbManager.addDetailedLog({
+                        user_id: interaction.user.id,
+                        action: 'application_create',
+                        entity_type: 'application',
+                        entity_id: application.id,
+                        details: `Создана новая заявка`,
+                        ip_address: 'discord'
+                    });
+                    
+                    if (global.io) {
+                        global.io.to('applications-room').emit('new_application', application)
+                    }
+                    
+                    await interaction.reply({ 
+                        content: `✅ Спасибо за заявку #${application.id}! Ожидайте решения.`, 
+                        flags: 64 
+                    })
+                    
+                } catch (error) {
+                    console.error('❌ Ошибка при обработке заявки:', error);
+                    await interaction.reply({ 
+                        content: `❌ Произошла ошибка при отправке заявки. Пожалуйста, попробуйте позже.`, 
+                        flags: 64 
+                    });
+                }
             }
-            
-            const formData = {
-                name: interaction.fields.getTextInputValue('name_input'),
-                time: interaction.fields.getTextInputValue('time_input'),
-                server: interaction.fields.getTextInputValue('server_input'),
-                exp: interaction.fields.getTextInputValue('exp_input'),
-                gung: interaction.fields.getTextInputValue('gung_input')
-            }
-            
-            // Сохраняем заявку
-            const user = dbManager.ensureUser({
-                id: interaction.user.id,
-                username: interaction.user.username,
-                discriminator: interaction.user.discriminator,
-                displayAvatarURL: () => interaction.user.displayAvatarURL({ format: 'png', size: 256 })
-            })
-            
-            const application = await dbManager.createApplication({
-                user_id: interaction.user.id,
-                username: interaction.user.username,
-                discord_name: interaction.user.tag,
-                avatar_url: interaction.user.displayAvatarURL({ format: 'png', size: 256 }),
-                full_name: formData.name,
-                play_time_info: formData.time,
-                servers_history: formData.server,
-                mp_experience: formData.exp,
-                gung_links: formData.gung,
-                created_at: new Date().toISOString(),
-                status: 'pending'
-            })
-            
-            if (global.io) {
-                global.io.to('applications-room').emit('new_application', application)
-            }
-            
-            await interaction.reply({ 
-                content: `✅ Спасибо за заявку #${application.id}! Ожидайте решения.`, 
-                flags: 64 
-            })
         }
         
     } catch (error) {
         console.error('❌ Ошибка в interactionCreate:', error)
+        // Пытаемся ответить пользователю, если возможно
+        try {
+            if (interaction.isRepliable()) {
+                await interaction.reply({ 
+                    content: `❌ Произошла ошибка. Пожалуйста, попробуйте позже.`, 
+                    flags: 64 
+                });
+            }
+        } catch (e) {
+            console.error('❌ Не удалось отправить сообщение об ошибке:', e);
+        }
     }
 })
 
@@ -524,7 +600,7 @@ function checkCooldown(userId) {
 }
 
 // ==================== СОБЫТИЕ ГОТОВНОСТИ ====================
-client.once('ready', async () => {
+client.once('clientReady', async () => {
     console.log(`\n✅ Бот ${client.user.tag} запущен!`)
     client.user.setActivity('Прием заявок', { type: 'WATCHING' })
     
@@ -600,6 +676,17 @@ async function start() {
         global.webServer = webServer
         global.discordClient = client
         global.acceptApplication = acceptApplication
+        global.dbManager = dbManager // Добавляем для доступа из middleware
+        
+        // Настраиваем WebSocket комнаты для админов
+        if (global.io) {
+            global.io.on('connection', (socket) => {
+                socket.on('subscribe_admin', () => {
+                    socket.join('admin-room');
+                    console.log('👑 Клиент подписан на админскую комнату');
+                });
+            });
+        }
         
         console.log(`\n✅ Бот успешно запущен!`)
         console.log(`   • Команд загружено: ${client.commands.size}`)
