@@ -24,8 +24,12 @@ import {
     isSuperAdmin, 
     attachUserInfo,
     isAuthenticatedAPI,
-    isAdminAPI 
+    isAdminAPI,
+    isSuperAdminAPI
 } from './middleware/auth.js'
+
+// Импортируем новый middleware для аудита
+import { auditLog } from './middleware/audit.js'
 
 dotenv.config()
 
@@ -69,6 +73,12 @@ class WebServer {
                 data: null,
                 timestamp: 0,
                 ttl: 30000 // 30 секунд
+            },
+            // Новый кэш для шаблонов
+            rejectTemplates: {
+                data: null,
+                timestamp: 0,
+                ttl: 60000 // 1 минута
             }
         }
         
@@ -214,6 +224,12 @@ class WebServer {
             socket.on('subscribe_archive', () => {
                 socket.join('archive-room')
                 console.log('📦 Клиент подписан на обновления архива')
+            })
+            
+            // НОВОЕ: подписка на админскую комнату для аудита
+            socket.on('subscribe_admin', () => {
+                socket.join('admin-room')
+                console.log('👑 Клиент подписан на админские обновления')
             })
             
             socket.on('disconnect', () => {
@@ -434,6 +450,16 @@ class WebServer {
             })
         })
         
+        // ==================== НОВАЯ СТРАНИЦА АУДИТА ====================
+        this.app.get('/admin/audit', isSuperAdmin, (req, res) => {
+            res.render('admin/audit', { 
+                title: 'Журнал действий',
+                activePage: 'audit',
+                user: req.user,
+                env: process.env
+            })
+        })
+        
         // ==================== API МАРШРУТЫ ====================
         this.app.get('/api/user/info', isAuthenticatedAPI, (req, res) => {
             const BOT_OWNER_ID = process.env.BOT_OWNER_ID
@@ -455,118 +481,118 @@ class WebServer {
         })
         
         // ==================== API ДЛЯ АДМИНОВ ====================
-this.app.get('/api/admin/admins', isAdminAPI, (req, res) => {
-    try {
-        const admins = dbManager.db.prepare(`
-            SELECT up.user_id, up.role, up.permissions, up.granted_at, up.updated_at,
-                   u.username, u.avatar_url
-            FROM user_permissions up
-            LEFT JOIN users u ON u.user_id = up.user_id
-            WHERE up.role IN ('admin', 'superadmin')
-            ORDER BY 
-                CASE up.role 
-                    WHEN 'superadmin' THEN 1 
-                    WHEN 'admin' THEN 2 
-                    ELSE 3 
-                END,
-                up.updated_at DESC
-        `).all()
-        
-        res.json({ success: true, data: admins })
-    } catch (error) {
-        console.error('❌ Ошибка при получении администраторов:', error)
-        res.status(500).json({ success: false, error: error.message })
-    }
-})
-
-// ИСПРАВЛЕННЫЙ ЭНДПОИНТ ДОБАВЛЕНИЯ АДМИНА
-this.app.post('/api/admin/admins', isSuperAdmin, async (req, res) => {
-    try {
-        const { userId, username } = req.body
-        
-        if (!userId) {
-            return res.status(400).json({ success: false, error: 'Не указан ID пользователя' })
-        }
-        
-        console.log(`👑 Добавление администратора: ${userId}`);
-        
-        // Проверяем, есть ли уже пользователь в БД
-        let user = dbManager.getUserById(userId)
-        
-        if (!user) {
-            console.log(`🔄 Пользователь не найден в БД, получаем данные из Discord...`);
-            
-            // Получаем данные из Discord
-            let discordUsername = username || 'Unknown';
-            let discordAvatar = null;
-            
+        this.app.get('/api/admin/admins', isAdminAPI, (req, res) => {
             try {
-                if (global.discordClient) {
-                    const discordUser = await global.discordClient.users.fetch(userId).catch(() => null);
-                    if (discordUser) {
-                        discordUsername = discordUser.username;
-                        discordAvatar = discordUser.displayAvatarURL({ format: 'png', size: 256 });
-                        console.log(`✅ Получены данные из Discord: ${discordUsername}`);
-                    }
-                }
-            } catch (discordError) {
-                console.error('❌ Ошибка получения данных из Discord:', discordError.message);
+                const admins = dbManager.db.prepare(`
+                    SELECT up.user_id, up.role, up.permissions, up.granted_at, up.updated_at,
+                           u.username, u.avatar_url
+                    FROM user_permissions up
+                    LEFT JOIN users u ON u.user_id = up.user_id
+                    WHERE up.role IN ('admin', 'superadmin')
+                    ORDER BY 
+                        CASE up.role 
+                            WHEN 'superadmin' THEN 1 
+                            WHEN 'admin' THEN 2 
+                            ELSE 3 
+                        END,
+                        up.updated_at DESC
+                `).all()
+                
+                res.json({ success: true, data: admins })
+            } catch (error) {
+                console.error('❌ Ошибка при получении администраторов:', error)
+                res.status(500).json({ success: false, error: error.message })
             }
-            
-            // Создаем пользователя с правильным именем
-            dbManager.createUser(
-                userId, 
-                discordUsername, 
-                '0000', 
-                discordAvatar,
-                null, null, null, null
-            );
-            
-            console.log(`✅ Пользователь создан с именем: ${discordUsername}`);
-        } else {
-            console.log(`✅ Пользователь уже существует: ${user.username}`);
-        }
+        })
+
+        // ИСПРАВЛЕННЫЙ ЭНДПОИНТ ДОБАВЛЕНИЯ АДМИНА
+        this.app.post('/api/admin/admins', isSuperAdmin, auditLog({ entityType: 'admin', action: 'create' }), async (req, res) => {
+            try {
+                const { userId, username } = req.body
+                
+                if (!userId) {
+                    return res.status(400).json({ success: false, error: 'Не указан ID пользователя' })
+                }
+                
+                console.log(`👑 Добавление администратора: ${userId}`);
+                
+                // Проверяем, есть ли уже пользователь в БД
+                let user = dbManager.getUserById(userId)
+                
+                if (!user) {
+                    console.log(`🔄 Пользователь не найден в БД, получаем данные из Discord...`);
+                    
+                    // Получаем данные из Discord
+                    let discordUsername = username || 'Unknown';
+                    let discordAvatar = null;
+                    
+                    try {
+                        if (global.discordClient) {
+                            const discordUser = await global.discordClient.users.fetch(userId).catch(() => null);
+                            if (discordUser) {
+                                discordUsername = discordUser.username;
+                                discordAvatar = discordUser.displayAvatarURL({ format: 'png', size: 256 });
+                                console.log(`✅ Получены данные из Discord: ${discordUsername}`);
+                            }
+                        }
+                    } catch (discordError) {
+                        console.error('❌ Ошибка получения данных из Discord:', discordError.message);
+                    }
+                    
+                    // Создаем пользователя с правильным именем
+                    dbManager.createUser(
+                        userId, 
+                        discordUsername, 
+                        '0000', 
+                        discordAvatar,
+                        null, null, null, null
+                    );
+                    
+                    console.log(`✅ Пользователь создан с именем: ${discordUsername}`);
+                } else {
+                    console.log(`✅ Пользователь уже существует: ${user.username}`);
+                }
+                
+                // Проверяем, не админ ли уже
+                const existing = dbManager.db.prepare(`
+                    SELECT role FROM user_permissions WHERE user_id = ?
+                `).get(userId)
+                
+                if (existing) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        error: 'Пользователь уже является администратором' 
+                    })
+                }
+                
+                // Стандартные права
+                const permissions = {
+                    canViewDashboard: true,
+                    canManageUsers: true,
+                    canManageGuilds: true,
+                    canManageApplications: true,
+                    canViewLogs: true
+                }
+                
+                // Добавляем права
+                dbManager.db.prepare(`
+                    INSERT INTO user_permissions (user_id, role, permissions, granted_by, granted_at)
+                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                `).run(userId, 'admin', JSON.stringify(permissions), req.user.user_id)
+                
+                // Очищаем кэш
+                this.cache.admins.data = null
+                
+                console.log(`✅ Администратор ${userId} успешно добавлен`);
+                res.json({ success: true, message: 'Администратор добавлен' })
+                
+            } catch (error) {
+                console.error('❌ Ошибка при добавлении администратора:', error)
+                res.status(500).json({ success: false, error: error.message })
+            }
+        })
         
-        // Проверяем, не админ ли уже
-        const existing = dbManager.db.prepare(`
-            SELECT role FROM user_permissions WHERE user_id = ?
-        `).get(userId)
-        
-        if (existing) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Пользователь уже является администратором' 
-            })
-        }
-        
-        // Стандартные права
-        const permissions = {
-            canViewDashboard: true,
-            canManageUsers: true,
-            canManageGuilds: true,
-            canManageApplications: true,
-            canViewLogs: true
-        }
-        
-        // Добавляем права
-        dbManager.db.prepare(`
-            INSERT INTO user_permissions (user_id, role, permissions, granted_by, granted_at)
-            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-        `).run(userId, 'admin', JSON.stringify(permissions), req.user.user_id)
-        
-        // Очищаем кэш
-        this.cache.admins.data = null
-        
-        console.log(`✅ Администратор ${userId} успешно добавлен`);
-        res.json({ success: true, message: 'Администратор добавлен' })
-        
-    } catch (error) {
-        console.error('❌ Ошибка при добавлении администратора:', error)
-        res.status(500).json({ success: false, error: error.message })
-    }
-})
-        
-        this.app.delete('/api/admin/admins', isSuperAdmin, (req, res) => {
+        this.app.delete('/api/admin/admins', isSuperAdmin, auditLog({ entityType: 'admin', action: 'delete' }), (req, res) => {
             try {
                 const { userId } = req.body
                 
@@ -708,7 +734,7 @@ this.app.post('/api/admin/admins', isSuperAdmin, async (req, res) => {
             }
         })
 
-        this.app.post('/api/admin/applications/:id/status', isAdminAPI, (req, res) => {
+        this.app.post('/api/admin/applications/:id/status', isAdminAPI, auditLog({ entityType: 'application' }), (req, res) => {
             try {
                 const { id } = req.params
                 const { status, reason } = req.body
@@ -753,7 +779,7 @@ this.app.post('/api/admin/admins', isSuperAdmin, async (req, res) => {
         })
 
         // ==================== ЭНДПОИНТ ДЛЯ ПРИНЯТИЯ ЗАЯВКИ ====================
-        this.app.post('/api/admin/applications/:id/accept', isAdminAPI, async (req, res) => {
+        this.app.post('/api/admin/applications/:id/accept', isAdminAPI, auditLog({ entityType: 'application', action: 'accept' }), async (req, res) => {
             console.log('\n' + '='.repeat(70))
             console.log('🌐 ВЕБ-ЗАПРОС: ПРИНЯТИЕ ЗАЯВКИ')
             console.log('='.repeat(70))
@@ -875,7 +901,7 @@ this.app.post('/api/admin/admins', isSuperAdmin, async (req, res) => {
         });
 
         // ==================== ЭНДПОИНТ ДЛЯ АРХИВАЦИИ ====================
-        this.app.post('/api/admin/applications/:id/archive', isAdminAPI, (req, res) => {
+        this.app.post('/api/admin/applications/:id/archive', isAdminAPI, auditLog({ entityType: 'application', action: 'archive' }), (req, res) => {
             try {
                 const { id } = req.params;
                 
@@ -932,7 +958,7 @@ this.app.post('/api/admin/admins', isSuperAdmin, async (req, res) => {
         });
 
         // ==================== ЭНДПОИНТ ДЛЯ ВОССТАНОВЛЕНИЯ ИЗ АРХИВА ====================
-        this.app.post('/api/admin/applications/:id/restore', isAdminAPI, (req, res) => {
+        this.app.post('/api/admin/applications/:id/restore', isAdminAPI, auditLog({ entityType: 'application', action: 'restore' }), (req, res) => {
             try {
                 const { id } = req.params;
                 
@@ -977,7 +1003,7 @@ this.app.post('/api/admin/admins', isSuperAdmin, async (req, res) => {
         });
 
         // ==================== ЭНДПОИНТ ДЛЯ ОТПРАВКИ ПРИГЛАШЕНИЯ ====================
-        this.app.post('/api/admin/applications/:id/send-interview', isAdmin, async (req, res) => {
+        this.app.post('/api/admin/applications/:id/send-interview', isAdmin, auditLog({ entityType: 'application', action: 'interview' }), async (req, res) => {
             try {
                 const { id } = req.params
                 
@@ -1223,7 +1249,7 @@ this.app.post('/api/admin/admins', isSuperAdmin, async (req, res) => {
         });
 
         // Обновление профиля члена семьи (реальное имя и дата рождения)
-        this.app.post('/api/admin/family-members/:userId/profile', isAdminAPI, (req, res) => {
+        this.app.post('/api/admin/family-members/:userId/profile', isAdminAPI, auditLog({ entityType: 'member', action: 'update_profile' }), (req, res) => {
             console.log('✏️ API: Обновление профиля члена семьи');
             
             try {
@@ -1296,7 +1322,7 @@ this.app.post('/api/admin/admins', isSuperAdmin, async (req, res) => {
         });
 
         // Обновление Nick и Static члена семьи
-        this.app.post('/api/admin/family-members/:userId/nick-static', isAdminAPI, (req, res) => {
+        this.app.post('/api/admin/family-members/:userId/nick-static', isAdminAPI, auditLog({ entityType: 'member', action: 'update_nick' }), (req, res) => {
             console.log('✏️ API: Обновление Nick/Static члена семьи');
             
             try {
@@ -1357,7 +1383,7 @@ this.app.post('/api/admin/admins', isSuperAdmin, async (req, res) => {
         });
 
         // Обновление заметок члена семьи
-        this.app.post('/api/admin/family-members/:userId/notes', isAdminAPI, (req, res) => {
+        this.app.post('/api/admin/family-members/:userId/notes', isAdminAPI, auditLog({ entityType: 'member', action: 'update_notes' }), (req, res) => {
             console.log('📝 API: Обновление заметок члена семьи');
             
             try {
@@ -1431,7 +1457,7 @@ this.app.post('/api/admin/admins', isSuperAdmin, async (req, res) => {
         });
 
         // Обновление Tier члена семьи
-        this.app.post('/api/admin/family-members/:userId/tier', isAdminAPI, (req, res) => {
+        this.app.post('/api/admin/family-members/:userId/tier', isAdminAPI, auditLog({ entityType: 'member', action: 'update_tier' }), (req, res) => {
             console.log('🎚️ API: Изменение Tier члена семьи');
             
             try {
@@ -1510,7 +1536,7 @@ this.app.post('/api/admin/admins', isSuperAdmin, async (req, res) => {
         });
 
         // Исключение члена из семьи
-        this.app.post('/api/admin/family-members/:userId/exclude', isAdminAPI, (req, res) => {
+        this.app.post('/api/admin/family-members/:userId/exclude', isAdminAPI, auditLog({ entityType: 'member', action: 'exclude' }), (req, res) => {
             console.log('🚫 API: Исключение члена из семьи');
             
             try {
@@ -1635,6 +1661,166 @@ this.app.post('/api/admin/admins', isSuperAdmin, async (req, res) => {
                     success: false,
                     error: error.message
                 });
+            }
+        });
+
+        // ==================== НОВЫЕ МАРШРУТЫ ====================
+        
+        // ==================== API ДЛЯ ШАБЛОНОВ ОТКАЗОВ ====================
+        this.app.get('/api/admin/reject-templates', isAdminAPI, (req, res) => {
+            try {
+                // Проверяем кэш
+                const now = Date.now();
+                if (this.cache.rejectTemplates.data && (now - this.cache.rejectTemplates.timestamp) < this.cache.rejectTemplates.ttl) {
+                    return res.json({ success: true, data: this.cache.rejectTemplates.data, cached: true });
+                }
+                
+                const templates = dbManager.getRejectTemplates();
+                
+                // Сохраняем в кэш
+                this.cache.rejectTemplates.data = templates;
+                this.cache.rejectTemplates.timestamp = now;
+                
+                res.json({ success: true, data: templates });
+            } catch (error) {
+                console.error('❌ Ошибка при получении шаблонов:', error);
+                res.status(500).json({ success: false, error: error.message });
+            }
+        });
+
+        this.app.post('/api/admin/reject-templates', isAdminAPI, auditLog({ entityType: 'template', action: 'create' }), (req, res) => {
+            try {
+                const { name, text } = req.body;
+                
+                if (!name || !text) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        error: 'Имя и текст шаблона обязательны' 
+                    });
+                }
+                
+                const id = dbManager.createRejectTemplate(name, text, req.user.user_id);
+                
+                // Очищаем кэш
+                this.cache.rejectTemplates.data = null;
+                
+                // Уведомляем через WebSocket
+                if (this.io) {
+                    this.io.to('admin-room').emit('templates_updated');
+                }
+                
+                res.json({ 
+                    success: true, 
+                    message: 'Шаблон создан',
+                    id: id 
+                });
+            } catch (error) {
+                console.error('❌ Ошибка при создании шаблона:', error);
+                res.status(500).json({ success: false, error: error.message });
+            }
+        });
+
+        this.app.put('/api/admin/reject-templates/:id', isAdminAPI, auditLog({ entityType: 'template', action: 'update' }), (req, res) => {
+            try {
+                const { id } = req.params;
+                const { name, text } = req.body;
+                
+                if (!name || !text) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        error: 'Имя и текст шаблона обязательны' 
+                    });
+                }
+                
+                const success = dbManager.updateRejectTemplate(id, name, text, req.user.user_id);
+                
+                if (success) {
+                    // Очищаем кэш
+                    this.cache.rejectTemplates.data = null;
+                    
+                    if (this.io) {
+                        this.io.to('admin-room').emit('templates_updated');
+                    }
+                    res.json({ success: true, message: 'Шаблон обновлен' });
+                } else {
+                    res.status(404).json({ success: false, error: 'Шаблон не найден' });
+                }
+            } catch (error) {
+                console.error('❌ Ошибка при обновлении шаблона:', error);
+                res.status(500).json({ success: false, error: error.message });
+            }
+        });
+
+        this.app.delete('/api/admin/reject-templates/:id', isAdminAPI, auditLog({ entityType: 'template', action: 'delete' }), (req, res) => {
+            try {
+                const { id } = req.params;
+                const success = dbManager.deleteRejectTemplate(id, req.user.user_id);
+                
+                if (success) {
+                    // Очищаем кэш
+                    this.cache.rejectTemplates.data = null;
+                    
+                    if (this.io) {
+                        this.io.to('admin-room').emit('templates_updated');
+                    }
+                    res.json({ success: true, message: 'Шаблон удален' });
+                } else {
+                    res.status(404).json({ success: false, error: 'Шаблон не найден' });
+                }
+            } catch (error) {
+                console.error('❌ Ошибка при удалении шаблона:', error);
+                res.status(500).json({ success: false, error: error.message });
+            }
+        });
+
+        // ==================== API ДЛЯ АУДИТА ====================
+        this.app.get('/api/admin/audit', isSuperAdminAPI, (req, res) => {
+            try {
+                const { 
+                    entity_type, entity_id, user_id, action,
+                    date_from, date_to, limit = 100, offset = 0 
+                } = req.query;
+                
+                const logs = dbManager.getAuditLogs({
+                    entity_type,
+                    entity_id,
+                    user_id,
+                    action,
+                    date_from,
+                    date_to
+                }, parseInt(limit), parseInt(offset));
+                
+                res.json({ success: true, data: logs });
+            } catch (error) {
+                console.error('❌ Ошибка при получении логов:', error);
+                res.status(500).json({ success: false, error: error.message });
+            }
+        });
+
+        this.app.get('/api/admin/audit/stats', isSuperAdminAPI, (req, res) => {
+            try {
+                const stats = dbManager.getAuditStats();
+                res.json({ success: true, data: stats });
+            } catch (error) {
+                console.error('❌ Ошибка при получении статистики аудита:', error);
+                res.status(500).json({ success: false, error: error.message });
+            }
+        });
+
+        this.app.post('/api/admin/audit/cleanup', isSuperAdminAPI, auditLog({ entityType: 'audit', action: 'cleanup' }), (req, res) => {
+            try {
+                const { days = 90 } = req.body;
+                
+                const deleted = dbManager.cleanupLogs(days);
+                
+                res.json({ 
+                    success: true, 
+                    message: `Удалено ${deleted} записей`,
+                    deleted: deleted
+                });
+            } catch (error) {
+                console.error('❌ Ошибка при очистке логов:', error);
+                res.status(500).json({ success: false, error: error.message });
             }
         });
 

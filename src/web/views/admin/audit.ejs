@@ -1,0 +1,578 @@
+<%
+title = 'Журнал действий';
+%>
+
+<%- include('../layouts/main') %>
+
+<style>
+    .audit-content {
+        width: 100%;
+        max-width: 1600px;
+        margin: 2rem auto 0;
+        padding: 120px 0 2rem;
+        animation: fadeIn 0.6s ease-out;
+        position: relative;
+        z-index: 1;
+    }
+
+    .audit-filters {
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.03);
+        border-radius: 30px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .filter-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .audit-table {
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.03);
+        border-radius: 30px;
+        overflow: hidden;
+    }
+
+    .log-entry {
+        padding: 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        transition: background 0.3s ease;
+    }
+
+    .log-entry:hover {
+        background: rgba(139, 92, 246, 0.05);
+    }
+
+    .log-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .log-action {
+        padding: 0.2rem 0.8rem;
+        border-radius: 30px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        background: rgba(139, 92, 246, 0.15);
+        color: var(--accent-purple);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+    }
+
+    .log-time {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+    }
+
+    .log-details {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .log-label {
+        color: var(--text-muted);
+    }
+
+    .log-value {
+        color: var(--text-primary);
+        word-break: break-word;
+    }
+
+    .diff-viewer {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 12px;
+        padding: 1rem;
+        font-family: monospace;
+        font-size: 0.85rem;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .diff-viewer pre {
+        margin: 0.5rem 0 0 0;
+        color: var(--text-secondary);
+        white-space: pre-wrap;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: rgba(20, 20, 30, 0.4);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.03);
+        border-radius: 30px;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--accent-purple);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        background: rgba(139, 92, 246, 0.15);
+        color: var(--accent-purple);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+    }
+
+    .stat-info {
+        flex: 1;
+    }
+
+    .stat-label {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        margin-bottom: 0.3rem;
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #fff, #e0e0e0);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        line-height: 1;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+    }
+
+    .empty-icon {
+        font-size: 4rem;
+        color: var(--text-muted);
+        margin-bottom: 1rem;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-top: 2rem;
+        align-items: center;
+    }
+
+    @media (max-width: 768px) {
+        .audit-content {
+            padding: 100px 1rem 2rem;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .log-details {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="audit-content">
+    <div class="top-bar">
+        <div class="title-section">
+            <i class="fas fa-history"></i>
+            <h1>Журнал действий</h1>
+        </div>
+        <button class="refresh-button" onclick="loadLogs(currentPage)" id="refreshBtn">
+            <i class="fas fa-sync-alt"></i> Обновить
+        </button>
+    </div>
+
+    <!-- Статистика -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-history"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-label">Всего записей</div>
+                <div class="stat-number" id="totalLogs">0</div>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-calendar-week"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-label">За 7 дней</div>
+                <div class="stat-number" id="weekLogs">0</div>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-label">Активных админов</div>
+                <div class="stat-number" id="activeAdmins">0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Фильтры -->
+    <div class="audit-filters">
+        <div class="filter-row">
+            <select class="modal-input" id="filterEntity">
+                <option value="">Все типы</option>
+                <option value="application">Заявки</option>
+                <option value="member">Участники</option>
+                <option value="admin">Администраторы</option>
+                <option value="template">Шаблоны</option>
+                <option value="audit">Аудит</option>
+            </select>
+            
+            <input type="text" class="modal-input" id="filterUser" placeholder="ID пользователя">
+            
+            <select class="modal-input" id="filterAction">
+                <option value="">Все действия</option>
+                <option value="application_create">Создание заявки</option>
+                <option value="application_accept">Принятие заявки</option>
+                <option value="application_reject">Отклонение заявки</option>
+                <option value="application_archive">Архивация</option>
+                <option value="member_update">Обновление участника</option>
+                <option value="member_exclude">Исключение</option>
+                <option value="admin_create">Назначение админа</option>
+                <option value="admin_delete">Удаление админа</option>
+                <option value="template_create">Создание шаблона</option>
+                <option value="template_update">Обновление шаблона</option>
+                <option value="template_delete">Удаление шаблона</option>
+            </select>
+        </div>
+        
+        <div class="filter-row">
+            <input type="date" class="modal-input" id="filterDateFrom" placeholder="Дата с">
+            <input type="date" class="modal-input" id="filterDateTo" placeholder="Дата по">
+            
+            <button class="filter-button" onclick="applyFilters()">
+                <i class="fas fa-search"></i> Применить
+            </button>
+            <button class="filter-button" onclick="resetFilters()">
+                <i class="fas fa-times"></i> Сбросить
+            </button>
+        </div>
+    </div>
+
+    <!-- Таблица логов -->
+    <div class="audit-table" id="auditTable">
+        <!-- Логи будут загружаться сюда -->
+    </div>
+    
+    <!-- Пагинация -->
+    <div class="pagination">
+        <button class="filter-button" onclick="loadPage(currentPage - 1)" id="prevPage" disabled>
+            <i class="fas fa-chevron-left"></i> Предыдущая
+        </button>
+        <span style="color: var(--text-secondary);">
+            Страница <span id="currentPage">1</span> из <span id="totalPages">1</span>
+        </span>
+        <button class="filter-button" onclick="loadPage(currentPage + 1)" id="nextPage">
+            Следующая <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+let currentPage = 1;
+let totalPages = 1;
+let filters = {};
+let totalLogs = 0;
+
+function formatDate(dateString) {
+    if (!dateString) return 'Неизвестно';
+    const date = new Date(dateString);
+    return date.toLocaleString('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function getActionColor(action) {
+    if (action.includes('delete') || action.includes('reject') || action.includes('exclude')) return '#EF4444';
+    if (action.includes('create') || action.includes('accept')) return '#10B981';
+    if (action.includes('update') || action.includes('edit')) return '#3B82F6';
+    if (action.includes('archive')) return '#6B7280';
+    return '#8B5CF6';
+}
+
+function getActionIcon(action) {
+    if (action.includes('delete') || action.includes('reject') || action.includes('exclude')) return 'trash';
+    if (action.includes('create') || action.includes('accept')) return 'plus-circle';
+    if (action.includes('update') || action.includes('edit')) return 'edit';
+    if (action.includes('archive')) return 'archive';
+    if (action.includes('view')) return 'eye';
+    return 'history';
+}
+
+function formatDiff(oldVal, newVal) {
+    if (!oldVal && !newVal) return '';
+    
+    try {
+        const oldStr = typeof oldVal === 'string' ? oldVal : JSON.stringify(oldVal, null, 2);
+        const newStr = typeof newVal === 'string' ? newVal : JSON.stringify(newVal, null, 2);
+        
+        if (oldStr === newStr) return `<pre>${escapeHtml(newStr)}</pre>`;
+        
+        return `
+            <div class="diff-viewer">
+                <div style="margin-bottom: 0.5rem; color: #10B981;">
+                    <i class="fas fa-arrow-down"></i> Новое:
+                </div>
+                <pre style="color: #10B981;">${escapeHtml(newStr)}</pre>
+                <div style="margin: 0.5rem 0; color: #EF4444;">
+                    <i class="fas fa-arrow-up"></i> Старое:
+                </div>
+                <pre style="color: #EF4444; text-decoration: line-through; opacity: 0.7;">${escapeHtml(oldStr)}</pre>
+            </div>
+        `;
+    } catch (e) {
+        return escapeHtml(newVal || oldVal || '');
+    }
+}
+
+async function loadLogs(page = 1) {
+    const table = document.getElementById('auditTable');
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) refreshBtn.classList.add('loading');
+    
+    // Строим query string из фильтров
+    const params = new URLSearchParams({
+        limit: 50,
+        offset: (page - 1) * 50,
+        ...filters
+    });
+    
+    try {
+        const response = await fetch(`/api/admin/audit?${params}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            if (data.data.length === 0) {
+                table.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fas fa-history"></i>
+                        </div>
+                        <h3 class="empty-title">Нет записей</h3>
+                        <p class="empty-text">По вашему запросу ничего не найдено</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            table.innerHTML = data.data.map(log => {
+                const details = log.details ? JSON.parse(log.details) : {};
+                const actionColor = getActionColor(log.action);
+                const actionIcon = getActionIcon(log.action);
+                
+                // Парсим old_value и new_value если они есть
+                let oldValue = null;
+                let newValue = null;
+                try {
+                    if (log.old_value) oldValue = JSON.parse(log.old_value);
+                    if (log.new_value) newValue = JSON.parse(log.new_value);
+                } catch (e) {
+                    // Не JSON, оставляем как есть
+                }
+                
+                return `
+                    <div class="log-entry">
+                        <div class="log-header">
+                            <span class="log-action" style="background: ${actionColor}20; color: ${actionColor}; border-color: ${actionColor}40;">
+                                <i class="fas fa-${actionIcon}"></i> ${log.action}
+                            </span>
+                            <span class="log-time">
+                                <i class="fas fa-clock"></i> ${formatDate(log.created_at)}
+                            </span>
+                            <span class="log-time">
+                                <i class="fas fa-globe"></i> ${log.ip_address || 'Н/Д'}
+                            </span>
+                        </div>
+                        
+                        <div class="log-details">
+                            <div class="log-label">Пользователь:</div>
+                            <div class="log-value">
+                                ${log.username ? escapeHtml(log.username) : 'Система'}
+                                ${log.user_id ? `<span style="color: var(--text-muted);"> (${log.user_id})</span>` : ''}
+                            </div>
+                            
+                            <div class="log-label">Сущность:</div>
+                            <div class="log-value">
+                                ${log.entity_type || '-'} ${log.entity_id ? `#${log.entity_id}` : ''}
+                            </div>
+                            
+                            ${oldValue || newValue ? `
+                                <div class="log-label">Изменения:</div>
+                                <div class="log-value">
+                                    ${formatDiff(oldValue, newValue)}
+                                </div>
+                            ` : ''}
+                            
+                            ${details.body ? `
+                                <div class="log-label">Данные:</div>
+                                <div class="log-value">
+                                    <pre style="background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 8px; font-size: 0.8rem;">${escapeHtml(JSON.stringify(details.body, null, 2))}</pre>
+                                </div>
+                            ` : ''}
+                            
+                            ${log.details && !details.body ? `
+                                <div class="log-label">Детали:</div>
+                                <div class="log-value">${escapeHtml(log.details)}</div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Обновляем пагинацию
+            totalPages = Math.ceil(data.total / 50) || 1;
+            document.getElementById('currentPage').textContent = page;
+            document.getElementById('totalPages').textContent = totalPages;
+            document.getElementById('prevPage').disabled = page <= 1;
+            document.getElementById('nextPage').disabled = page >= totalPages;
+            currentPage = page;
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки логов:', error);
+        table.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="fas fa-exclamation-triangle" style="color: #EF4444;"></i>
+                </div>
+                <h3 class="empty-title">Ошибка загрузки</h3>
+                <p class="empty-text">Не удалось загрузить журнал действий</p>
+                <button onclick="loadLogs(1)" class="filter-button" style="margin-top: 1rem;">
+                    <i class="fas fa-sync-alt"></i> Повторить
+                </button>
+            </div>
+        `;
+    } finally {
+        if (refreshBtn) refreshBtn.classList.remove('loading');
+    }
+}
+
+async function loadStats() {
+    try {
+        const response = await fetch('/api/admin/audit/stats');
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('totalLogs').textContent = data.data.total || 0;
+            document.getElementById('weekLogs').textContent = data.data.last7Days || 0;
+            document.getElementById('activeAdmins').textContent = data.data.byUser?.length || 0;
+            totalLogs = data.data.total || 0;
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки статистики:', error);
+    }
+}
+
+function applyFilters() {
+    filters = {
+        entity_type: document.getElementById('filterEntity').value,
+        user_id: document.getElementById('filterUser').value,
+        action: document.getElementById('filterAction').value,
+        date_from: document.getElementById('filterDateFrom').value,
+        date_to: document.getElementById('filterDateTo').value
+    };
+    
+    // Удаляем пустые фильтры
+    Object.keys(filters).forEach(key => {
+        if (!filters[key]) delete filters[key];
+    });
+    
+    currentPage = 1;
+    loadLogs(1);
+}
+
+function resetFilters() {
+    document.getElementById('filterEntity').value = '';
+    document.getElementById('filterUser').value = '';
+    document.getElementById('filterAction').value = '';
+    document.getElementById('filterDateFrom').value = '';
+    document.getElementById('filterDateTo').value = '';
+    
+    filters = {};
+    currentPage = 1;
+    loadLogs(1);
+}
+
+function loadPage(page) {
+    if (page < 1 || page > totalPages) return;
+    loadLogs(page);
+}
+
+// WebSocket для live-обновлений
+const socket = io();
+socket.on('connect', () => {
+    socket.emit('subscribe_stats');
+});
+
+socket.on('new_log', (data) => {
+    // Обновляем статистику
+    loadStats();
+    
+    // Обновляем список если мы на первой странице без фильтров
+    if (currentPage === 1 && Object.keys(filters).length === 0) {
+        loadLogs(1);
+    } else {
+        // Показываем уведомление
+        showNotification(`📝 Новое действие: ${data.action}`, 'info');
+    }
+});
+
+// Инициализация
+document.addEventListener('DOMContentLoaded', () => {
+    loadLogs(1);
+    loadStats();
+});
+
+// Закрытие модалок по Escape
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+        // Здесь можно добавить закрытие модалок если они есть
+    }
+});
+</script>
